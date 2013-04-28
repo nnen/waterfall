@@ -14,7 +14,7 @@ OBJECT_FILES = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.o,$(CPP_FILE
 DEP_FILES    = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.d,$(CPP_FILE)))
 
 CXXFLAGS     = -g -Wall -Icppapp/src
-LDFLAGS      = -Lcppapp -lcppapp -lfftw3 -lpng
+LDFLAGS      = -Lcppapp -lcppapp -lfftw3 -lpng -lcfitsio
 
 ECHO         = $(shell which echo)
 

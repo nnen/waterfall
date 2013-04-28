@@ -58,6 +58,8 @@ void WAVStream::readFormatSubchunk(int size)
 	format_.byteRate = readInt32();
 	format_.blockAlign = readInt16();
 	format_.bitsPerSample = readInt16();
+	
+	streamInfo_.sampleRate = format_.sampleRate;
 }
 
 
@@ -91,9 +93,16 @@ void WAVStream::readDataSubchunk(int size)
 			outputBuffer_[sample].imag = (double)dataBuffer_[sample * 2 + 1];
 		}
 		
-		if (backend_.isNotNull()) {
-			backend_->process(outputBuffer_);
-		}
+		process(outputBuffer_);
+		//if (backend_.isNotNull()) {
+		//	backend_->process(outputBuffer_, dataInfo_);
+		//}
+		
+		//dataInfo_.offset += outputBuffer_.size();
+		//dataInfo_.timeOffset = dataInfo_.timeOffset.addSamples(
+		//	outputBuffer_.size(),
+		//	streamInfo_.sampleRate
+		//);
 	}
 	
 	if (bufferRemainder > 0) {
@@ -107,10 +116,18 @@ void WAVStream::readDataSubchunk(int size)
 			outputBuffer_[sample].real = (double)dataBuffer_[sample * 2];
 			outputBuffer_[sample].imag = (double)dataBuffer_[sample * 2 + 1];
 		}
+
+		process(outputBuffer_);
 		
-		if (backend_.isNotNull()) {
-			backend_->process(outputBuffer_);
-		}
+		//if (backend_.isNotNull()) {
+		//	backend_->process(outputBuffer_, dataInfo_);
+		//}
+
+		//dataInfo_.offset += outputBuffer_.size();
+		//dataInfo_.timeOffset = dataInfo_.timeOffset.addSamples(
+		//	outputBuffer_.size(),
+		//	streamInfo_.sampleRate
+		//);
 	}
 }
 
@@ -140,12 +157,9 @@ int WAVStream::readSubchunk()
 		readInf1Subchunk(size);
 	} else if (subchunkId.compare(WAVFormat::DATA_SUBCHUNK_ID) == 0) {
 		if (!dataRead_) {
-			StreamInfo info;
-			info.knownLength = false;
-			info.length = 0;
-			info.sampleRate = format_.sampleRate;
-			if (backend_.isNotNull())
-				backend_->startStream(info);
+			startStream();
+			//if (backend_.isNotNull())
+			//	backend_->startStream(streamInfo_);
 			dataRead_ = true;
 		}
 		readDataSubchunk(size);
@@ -177,6 +191,8 @@ void WAVStream::run()
 	
 	//cout << "CHUNK ID: " << chunkID << endl;
 	
+	streamInfo_ = StreamInfo();
+	
 	string chunkId = readString(4);
 	if (chunkId.compare(WAVFormat::CHUNK_ID) != 0) {
 		cerr << "ERROR: Invalid chunk ID. Stream may not be in WAV format." << endl;
@@ -196,12 +212,15 @@ void WAVStream::run()
 	formatRead_ = false;
 	dataRead_ = false;
 	
+	dataInfo_ = DataInfo();
+	
 	while (chunkSize > 0) {
 		chunkSize -= readSubchunk();
 	}
 	
-	if (backend_.isNotNull())
-		backend_->endStream();
+	endStream();
+	//if (backend_.isNotNull())
+	//	backend_->endStream();
 }
 
 

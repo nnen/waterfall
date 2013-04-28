@@ -36,7 +36,8 @@ int App::run()
 	}
 	
 	WAVStream stream(input_);
-	Ref<Backend> backend = new SimpleWaterfallBackend(output());
+	//Ref<Backend> backend = new SimpleWaterfallBackend(output(), 0.2, 0.1);
+	Ref<Backend> backend = new WaterfallBackend("uflu", 10000);
 	stream.setBackend(backend);
 	stream.run();
 

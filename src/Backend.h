@@ -17,6 +17,8 @@ using namespace std;
 
 using namespace cppapp;
 
+#include "WFTime.h"
+
 //typedef double Complex[2];
 struct Complex {
 	double real;
@@ -25,9 +27,33 @@ struct Complex {
 
 
 struct StreamInfo {
-	bool knownLength;
-	int  length;
-	int  sampleRate;
+	bool   knownLength;
+	int    length;
+	int    sampleRate;
+	
+	WFTime timeOffset;
+
+	StreamInfo()
+	{
+		knownLength = false;
+		length = 0;
+		sampleRate = 48000;
+
+		timeOffset = WFTime(0, 0);
+	}
+};
+
+
+struct DataInfo {
+	long   offset;
+	
+	WFTime timeOffset;
+
+	DataInfo()
+	{
+		offset = 0;
+		timeOffset = WFTime(0, 0);
+	}
 };
 
 
@@ -46,7 +72,7 @@ public:
 	virtual ~Backend() {}
 	
 	virtual void startStream(StreamInfo info) { streamInfo_ = info; }
-	virtual void process(const vector<Complex> &data) = 0;
+	virtual void process(const vector<Complex> &data, DataInfo info) = 0;
 	virtual void endStream() {}
 };
 

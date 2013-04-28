@@ -20,6 +20,7 @@ using namespace std;
 
 using namespace cppapp;
 
+#include "Frontend.h"
 #include "Backend.h"
 
 
@@ -45,12 +46,10 @@ struct WAVFormat {
 /**
  * \todo Write documentation for class WAVStream.
  */
-class WAVStream : public Object {
+class WAVStream : public Frontend {
 private:
 	Ref<Input>      input_;
 
-	Ref<Backend>    backend_;
-	
 	vector<char>    stringBuffer_;
 	
 	bool            formatRead_;
@@ -89,7 +88,7 @@ public:
 	
 	void setBackend(Ref<Backend> backend) { backend_ = backend; }
 	
-	void run();
+	virtual void run();
 };
 
 #endif /* end of include guard: WAVSTREAM_DWWNH2AB */

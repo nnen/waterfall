@@ -20,7 +20,7 @@ class FFTBackend : public Backend {
 private:
 	FFTBackend(const FFTBackend& other);
 	
-	int bins_;
+	//int bins_;
 	int binOverlap_;
 	int bufferSize_;
 	
@@ -28,15 +28,20 @@ private:
 	fftw_complex *inMark_, *inEnd_;
 	fftw_plan     fftPlan_;
 	
+	DataInfo      info_;
+	
 protected:
-	virtual void processFFT(fftw_complex *data, int size) {}
+	int   bins_;
+	float fftSampleRate_;
+	
+	virtual void processFFT(const fftw_complex *data, int size, DataInfo info) {}
 	
 public:
 	FFTBackend();
 	virtual ~FFTBackend();
 	
 	virtual void startStream(StreamInfo info);
-	virtual void process(const vector<Complex> &data);
+	virtual void process(const vector<Complex> &data, DataInfo info);
 };
 
 #endif /* end of include guard: FFTBACKEND_QYQ7WJUZ */
