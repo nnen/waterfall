@@ -33,13 +33,11 @@ protected:
 	inline Ref<Input> input() { return input_; }
 	
 	virtual void setUp();
-	virtual int run();
+	virtual int onRun();
 
 public:
 	App();
 	virtual ~App();
-
-	int run(int argc, char* argv[]);
 };
 
 #endif /* end of include guard: APP_TBSBM2YW */

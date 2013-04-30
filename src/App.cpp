@@ -21,9 +21,9 @@ void App::setUp()
 /**
  *
  */
-int App::run()
+int App::onRun()
 {
-	AppBase::run();
+	AppBase::onRun();
 	
 	if (options().args().size() > 0) {
 		input_ = new FileInput(options().args()[0]);
@@ -37,7 +37,7 @@ int App::run()
 	
 	WAVStream stream(input_);
 	//Ref<Backend> backend = new SimpleWaterfallBackend(output(), 0.2, 0.1);
-	Ref<Backend> backend = new WaterfallBackend("uflu", 10000);
+	Ref<Backend> backend = new WaterfallBackend("uflu", 100);
 	stream.setBackend(backend);
 	stream.run();
 
@@ -59,15 +59,6 @@ App::App() :
  */
 App::~App()
 {
-}
-
-
-/**
- *
- */
-int App::run(int argc, char* argv[])
-{
-	return AppBase::run(argc, argv);
 }
 
 
