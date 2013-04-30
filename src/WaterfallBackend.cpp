@@ -31,19 +31,29 @@ void WaterfallBackend::makeSnapshot()
 	//char fileName[1024];
 	//sprintf(fileName, "!snapshot_%d.fits", (int)timeBuffer_[0].time.tv_sec);
 	
-	//char *fileName = new char[1024];
-	//sprintf(fileName, "!snapshot_%d.fits", (int)timeBuffer_[0].time.tv_sec);
+	char *fileName = new char[1024];
+	sprintf(fileName, "!snapshot_%d.fits", (int)timeBuffer_[0].time.tv_sec);
 	//sprintf(fileName, "!snapshot.fits");
 	
-	int status;
+	int status = 0;
 	fitsfile *fptr;
+
+	cerr << "Writing snapshot " << fileName << "..." << endl;
 	
-	//fits_create_file(&fptr, fileName, &status);
+	fits_create_file(&fptr, fileName, &status);
 	//fits_create_file(&fptr, "!snapshot.fits", &status);
-	fits_create_file(&fptr, "!output.fits", &status);
+	//fits_create_file(&fptr, "!output.fits", &status);
+	if (status) {
+		cerr << "ERROR: Failed to create FITS file (code: " << status << ")." << endl;
+		return;
+	}
 	
 	long dimensions[2] = { bins_, bufferMark_ };
 	fits_create_img(fptr, FLOAT_IMG, 2, dimensions, &status);
+	if (status) {
+		cerr << "ERROR: Failed to create primary HDU in FITS file (code: " <<
+			status << ")." << endl;
+	}
 	
 	char ctype2[] = { 'T', 'i', 'm', 'e', 0 };
 	fits_write_key(fptr, TSTRING, "CTYPE2", (void*)ctype2, "", &status);
@@ -63,25 +73,35 @@ void WaterfallBackend::makeSnapshot()
 	float cdelt1 = 1.0 / (float)bins_;
 	fits_write_key(fptr, TFLOAT, "CDELT1", (void*)&cdelt1, "", &status);
 	
-	//char origin[origin_.size() + 1];
-	//origin_.copy(origin, origin_.size());
-	//origin[origin_.size()] = 0;
-	//fits_write_key(fptr, TSTRING, "ORIGIN", (void*)origin, "", &status);
+	char origin[origin_.size() + 1];
+	origin_.copy(origin, origin_.size());
+	origin[origin_.size()] = 0;
+	fits_write_key(fptr, TSTRING, "ORIGIN", (void*)origin, "", &status);
 	
-	//cerr << "FILENAME: " << fileName << endl;
-	//cerr << "ORIGIN: " << origin << endl;
+	if (status) {
+		cerr << "ERROR: Error occured while writing FITS file header (code: " <<
+			status << ")." << endl;
+	}
 	
 	long fpixel[2] = { 1, 1 };
 	//for (int y = bufferMark_ - 1; y >= 0; y--) {
 	for (int y = 0; y < bufferMark_; y++) {
 		fits_write_pix(fptr, TFLOAT, fpixel, bins_, (void*)buffer_[y], &status);
 		fpixel[1]++;
+		if (status) break;
+	}
+
+	if (status) {
+		cerr << "ERROR: Error occured while writing data to FITS file (code: " <<
+			status << ")." << endl;
 	}
 	
 	fits_close_file(fptr, &status);
+	if (status) {
+		cerr << "ERROR: Failed to close FITS file (code: " << status << ")." << endl;
+	}
 	
-	//cerr << "fileName = " << fileName << endl;
-	//delete [] fileName;
+	delete [] fileName;
 }
 
 
@@ -98,7 +118,7 @@ void WaterfallBackend::processFFT(const fftw_complex *data, int size, DataInfo i
 	
 	timeBuffer_[bufferMark_] = info.timeOffset;
 	
-	if (++bufferMark_ > bufferSize_) {
+	if (++bufferMark_ >= bufferSize_) {
 		makeSnapshot();
 		bufferMark_ = 0;
 	}
