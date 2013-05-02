@@ -8,6 +8,8 @@
 
 #include "WaterfallBackend.h"
 
+#include <Logger.h>
+
 #include <iostream>
 using namespace std;
 
@@ -28,21 +30,15 @@ void WaterfallBackend::makeSnapshot()
 	//int fits_write_key(fitsfile *fptr, int datatype, char *keyname, 
      //                   void *value, char *comment, int *status)
 	
-	//char fileName[1024];
-	//sprintf(fileName, "!snapshot_%d.fits", (int)timeBuffer_[0].time.tv_sec);
-	
 	char *fileName = new char[1024];
 	sprintf(fileName, "!snapshot_%d.fits", (int)timeBuffer_[0].time.tv_sec);
-	//sprintf(fileName, "!snapshot.fits");
 	
 	int status = 0;
 	fitsfile *fptr;
-
-	cerr << "Writing snapshot " << fileName << "..." << endl;
+	
+	LOG_INFO("Writing snapshot \"" << (fileName + 1) << "\"...");
 	
 	fits_create_file(&fptr, fileName, &status);
-	//fits_create_file(&fptr, "!snapshot.fits", &status);
-	//fits_create_file(&fptr, "!output.fits", &status);
 	if (status) {
 		cerr << "ERROR: Failed to create FITS file (code: " << status << ")." << endl;
 		return;
@@ -84,7 +80,6 @@ void WaterfallBackend::makeSnapshot()
 	}
 	
 	long fpixel[2] = { 1, 1 };
-	//for (int y = bufferMark_ - 1; y >= 0; y--) {
 	for (int y = 0; y < bufferMark_; y++) {
 		fits_write_pix(fptr, TFLOAT, fpixel, bins_, (void*)buffer_[y], &status);
 		fpixel[1]++;

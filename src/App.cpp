@@ -25,6 +25,8 @@ int App::onRun()
 {
 	AppBase::onRun();
 	
+	config()->dump(cerr);
+	
 	if (options().args().size() > 0) {
 		input_ = new FileInput(options().args()[0]);
 	} else {

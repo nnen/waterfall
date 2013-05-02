@@ -19,8 +19,8 @@ using namespace std;
  */
 FFTBackend::FFTBackend() :
 	Backend(),
-	bins_(32768),
-	binOverlap_(32768 - 8192)
+	binOverlap_(32768 - 8192),
+	bins_(32768)
 {
 	bufferSize_ = sizeof(fftw_complex) * bins_;
 	
