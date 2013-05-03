@@ -39,10 +39,15 @@ int App::onRun()
 	
 	WAVStream stream(input_);
 	//Ref<Backend> backend = new SimpleWaterfallBackend(output(), 0.2, 0.1);
-	Ref<Backend> backend = new WaterfallBackend("uflu", 100);
+	Ref<Backend> backend = new WaterfallBackend(
+		config()->get("location_name",         "unknown")->asString(),
+		config()->get("waterfall_buffer_size", "10000")->asInteger(),
+		config()->get("waterfall_left_freq", "0")->asFloat(),
+		config()->get("waterfall_right_freq", "0")->asFloat()
+	);
 	stream.setBackend(backend);
 	stream.run();
-
+	
 	return 0;
 }
 

@@ -31,7 +31,9 @@ void WaterfallBackend::makeSnapshot()
      //                   void *value, char *comment, int *status)
 	
 	char *fileName = new char[1024];
-	sprintf(fileName, "!snapshot_%d.fits", (int)timeBuffer_[0].time.tv_sec);
+	sprintf(fileName, "!snapshot_%s_%d.fits",
+		   origin_.c_str(),
+		   (int)timeBuffer_[0].time.tv_sec);
 	
 	int status = 0;
 	fitsfile *fptr;
@@ -44,7 +46,8 @@ void WaterfallBackend::makeSnapshot()
 		return;
 	}
 	
-	long dimensions[2] = { bins_, bufferMark_ };
+	int width = rightBin_ - leftBin_;
+	long dimensions[2] = { width, bufferMark_ };
 	fits_create_img(fptr, FLOAT_IMG, 2, dimensions, &status);
 	if (status) {
 		cerr << "ERROR: Failed to create primary HDU in FITS file (code: " <<
@@ -64,9 +67,9 @@ void WaterfallBackend::makeSnapshot()
 	fits_write_key(fptr, TSTRING, "CTYPE1", (void*)ctype1, "", &status);
 	float crpix1 = 1.0;
 	fits_write_key(fptr, TFLOAT, "CRPIX1", (void*)&crpix1, "", &status);
-	float crval1 = 0.0;
+	float crval1 = leftFrequency_;
 	fits_write_key(fptr, TFLOAT, "CRVAL1", (void*)&crval1, "", &status);
-	float cdelt1 = 1.0 / (float)bins_;
+	float cdelt1 = binToFrequency();
 	fits_write_key(fptr, TFLOAT, "CDELT1", (void*)&cdelt1, "", &status);
 	
 	char origin[origin_.size() + 1];
@@ -81,11 +84,16 @@ void WaterfallBackend::makeSnapshot()
 	
 	long fpixel[2] = { 1, 1 };
 	for (int y = 0; y < bufferMark_; y++) {
-		fits_write_pix(fptr, TFLOAT, fpixel, bins_, (void*)buffer_[y], &status);
+		fits_write_pix(fptr,
+					TFLOAT,
+					fpixel,
+					width,
+					(void*)(buffer_[y] + leftBin_),
+					&status);
 		fpixel[1]++;
 		if (status) break;
 	}
-
+	
 	if (status) {
 		cerr << "ERROR: Error occured while writing data to FITS file (code: " <<
 			status << ")." << endl;
@@ -123,11 +131,16 @@ void WaterfallBackend::processFFT(const fftw_complex *data, int size, DataInfo i
 /**
  * Constructor.
  */
-WaterfallBackend::WaterfallBackend(string origin, int bufferSize) :
+WaterfallBackend::WaterfallBackend(string origin,
+							int bufferSize,
+							float leftFrequency,
+							float rightFrequency) :
 	origin_(origin),
 	bufferSize_(bufferSize),
 	buffer_(NULL),
-	bufferMark_(0)
+	bufferMark_(0),
+	leftFrequency_(leftFrequency),
+	rightFrequency_(rightFrequency)
 {
 	buffer_ = new float*[bufferSize_];
 	for (float **a = buffer_; a < (buffer_ + bufferSize_); a++) {
@@ -158,6 +171,16 @@ WaterfallBackend::~WaterfallBackend()
 void WaterfallBackend::startStream(StreamInfo info)
 {
 	FFTBackend::startStream(info);
+	
+	if (leftFrequency_ == rightFrequency_) {
+		leftFrequency_ = -(float)info.sampleRate;
+		rightFrequency_ = (float)info.sampleRate;
+		leftBin_  = 0;
+		rightBin_ = bins_;
+	} else {
+		leftBin_  = frequencyToBin(leftFrequency_);
+		rightBin_ = frequencyToBin(rightFrequency_);
+	}
 }
 
 
