@@ -9,6 +9,7 @@
 #ifndef WAVSTREAM_DWWNH2AB
 #define WAVSTREAM_DWWNH2AB
 
+#include <stdint.h>
 #include <string>
 #include <ostream>
 #include <vector>
