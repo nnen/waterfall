@@ -9,6 +9,7 @@
 #include "FFTBackend.h"
 
 #include <cassert>
+#include <cstring>
 using namespace std;
 
 #include <utils.h>

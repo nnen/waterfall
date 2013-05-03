@@ -49,7 +49,7 @@ ifeq ($(IS_LIBRARY),yes)
 	$(AR) -r $@ $^
 else
 	@echo "========= LINKING EXECUTABLE $@ ========="
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ 
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 endif
 	@echo
 
