@@ -9,8 +9,8 @@
 #ifndef APP_TBSBM2YW
 #define APP_TBSBM2YW
 
-#include <AppBase.h>
-#include <Input.h>
+#include <cppapp/AppBase.h>
+#include <cppapp/Input.h>
 
 using namespace cppapp;
 

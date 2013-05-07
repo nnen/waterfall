@@ -13,7 +13,7 @@
 
 using namespace std;
 
-#include <Object.h>
+#include <cppapp/Object.h>
 
 using namespace cppapp;
 

@@ -15,8 +15,8 @@ using namespace std;
 
 #include <png.h>
 
-#include <Object.h>
-#include <Output.h>
+#include <cppapp/Object.h>
+#include <cppapp/Output.h>
 
 using namespace cppapp;
 

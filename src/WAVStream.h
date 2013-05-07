@@ -16,8 +16,8 @@
 
 using namespace std;
 
-#include <Object.h>
-#include <Input.h>
+#include <cppapp/Object.h>
+#include <cppapp/Input.h>
 
 using namespace cppapp;
 

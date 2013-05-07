@@ -8,7 +8,7 @@
 
 #include "WaterfallBackend.h"
 
-#include <Logger.h>
+#include <cppapp/Logger.h>
 
 #include <iostream>
 using namespace std;

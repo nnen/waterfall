@@ -8,7 +8,7 @@
 
 #include "PNGWriter.h"
 
-#include<cstdlib>
+#include <cstdlib>
 using namespace std;
 
 

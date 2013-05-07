@@ -9,7 +9,7 @@
 #ifndef FRONTEND_OBVGMG1U
 #define FRONTEND_OBVGMG1U
 
-#include <Object.h>
+#include <cppapp/Object.h>
 
 using namespace cppapp;
 

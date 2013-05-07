@@ -9,9 +9,8 @@
 #ifndef SIMPLEWATERFALLBACKEND_X31NFT7Y
 #define SIMPLEWATERFALLBACKEND_X31NFT7Y
 
-#include <utils.h>
-
-#include <Output.h>
+#include <cppapp/utils.h>
+#include <cppapp/Output.h>
 
 using namespace cppapp;
 
