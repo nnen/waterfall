@@ -131,6 +131,7 @@ void FFTBackend::process(const vector<Complex> &data, DataInfo info)
 		
 		info_.offset++;
 		info_.timeOffset = info_.timeOffset.addSamples(count, streamInfo_.sampleRate);
+		LOG_DEBUG("offset = " << info_.timeOffset << ", count = " << count << ", sr = " << streamInfo_.sampleRate);
 	}
 	
 	if (size > 0) {

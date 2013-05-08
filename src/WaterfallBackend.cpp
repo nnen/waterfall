@@ -33,7 +33,7 @@ void WaterfallBackend::makeSnapshot()
 	char *fileName = new char[1024];
 	sprintf(fileName, "!snapshot_%s_%d.fits",
 		   origin_.c_str(),
-		   (int)timeBuffer_[0].time.tv_sec);
+		   (int)timeBuffer_[0].seconds());
 	
 	int status = 0;
 	fitsfile *fptr;

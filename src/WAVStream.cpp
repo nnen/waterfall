@@ -149,7 +149,7 @@ int WAVStream::readSubchunk()
 	string subchunkId = readString(4);
 	int size = readInt32();
 	
-	cerr << "CHUNK " << subchunkId << ", SIZE = " << size << endl;
+	//cerr << "CHUNK " << subchunkId << ", SIZE = " << size << endl;
 	
 	if (subchunkId.compare(WAVFormat::FORMAT_SUBCHUNK_ID) == 0) {
 		readFormatSubchunk(size);

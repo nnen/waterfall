@@ -21,7 +21,14 @@ Ref<Frontend> App::getFrontend()
 	//
 	//return new WAVStream(input);
 	
-	return new JackFrontend(NULL, NULL);
+	if (options().args().size() > 0) {
+		string fileName = options().args()[0];
+		LOG_INFO("Using WAV frontend, reading " << fileName << "...");
+		return new WAVStream(new FileInput(fileName));
+	} else {
+		LOG_INFO("Using JACK frontend.");
+		return new JackFrontend(NULL, NULL);
+	}
 }
 
 

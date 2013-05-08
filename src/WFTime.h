@@ -26,6 +26,9 @@ struct WFTime {
 public:
 	struct timeval time;
 	
+	inline time_t seconds() { return time.tv_sec; }
+	inline time_t microseconds() { return time.tv_usec; }
+	
 	inline int milliseconds()
 	{
 		return (time.tv_usec / US_IN_MS);
@@ -50,14 +53,23 @@ public:
 		time.tv_usec = (miliseconds % MS_IN_SECOND) * US_IN_MS;
 	}
 	
+	inline WFTime addMicroseconds(time_t us)
+	{
+		WFTime result(time.tv_sec, time.tv_usec + us);
+		result.time.tv_sec += result.time.tv_usec / US_IN_SECOND;
+		result.time.tv_usec %= US_IN_SECOND;
+		return result;
+	}
+	
 	inline WFTime addSamples(int sampleCount, int sampleRate)
 	{
 		long microseconds = (((float)sampleCount / (float)sampleRate) *
 						 (float)US_IN_SECOND);
-		return WFTime(
-			microseconds / US_IN_SECOND,
-			microseconds % US_IN_SECOND
-		);
+		return addMicroseconds(microseconds);
+		//return WFTime(
+		//	microseconds / US_IN_SECOND,
+		//	microseconds % US_IN_SECOND
+		//);
 	}
 	
 	inline static WFTime now()
