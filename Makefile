@@ -13,8 +13,8 @@ H_FILES      = $(shell ls $(SRC_DIR)/*.h)
 OBJECT_FILES = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.o,$(CPP_FILE)))
 DEP_FILES    = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.d,$(CPP_FILE)))
 
-CXXFLAGS     = -g -Wall $(shell pkg-config --cflags cppapp-0.2)
-LDFLAGS      = $(shell pkg-config --libs cppapp-0.2) -lfftw3 -lpng -lcfitsio
+CXXFLAGS     = -g -Wall -Icppapp
+LDFLAGS      = -Lcppapp -lcppapp -lfftw3 -lcfitsio -framework jackmp
 
 ECHO         = $(shell which echo)
 

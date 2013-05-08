@@ -42,11 +42,12 @@ protected:
 	virtual void processFFT(const fftw_complex *data, int size, DataInfo info) {}
 	
 public:
-	FFTBackend();
+	FFTBackend(int bins, int overlap);
 	virtual ~FFTBackend();
 	
 	virtual void startStream(StreamInfo info);
 	virtual void process(const vector<Complex> &data, DataInfo info);
+	virtual void endStream();
 	
 	float binToFrequency(int bin) const
 	{

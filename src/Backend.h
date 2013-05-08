@@ -13,7 +13,7 @@
 
 using namespace std;
 
-#include <cppapp/Object.h>
+#include <cppapp/cppapp.h>
 
 using namespace cppapp;
 
@@ -38,7 +38,7 @@ struct StreamInfo {
 		knownLength = false;
 		length = 0;
 		sampleRate = 48000;
-
+		
 		timeOffset = WFTime(0, 0);
 	}
 };
@@ -48,7 +48,7 @@ struct DataInfo {
 	long   offset;
 	
 	WFTime timeOffset;
-
+	
 	DataInfo()
 	{
 		offset = 0;

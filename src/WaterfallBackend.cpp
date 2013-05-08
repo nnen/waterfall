@@ -131,10 +131,13 @@ void WaterfallBackend::processFFT(const fftw_complex *data, int size, DataInfo i
 /**
  * Constructor.
  */
-WaterfallBackend::WaterfallBackend(string origin,
+WaterfallBackend::WaterfallBackend(int bins,
+							int overlap,
+							string origin,
 							int bufferSize,
 							float leftFrequency,
 							float rightFrequency) :
+	FFTBackend(bins, overlap),
 	origin_(origin),
 	bufferSize_(bufferSize),
 	buffer_(NULL),

@@ -16,6 +16,7 @@ using namespace cppapp;
 
 // TODO: Remove later.
 #include "WAVStream.h"
+#include "JackFrontend.h"
 #include "WaterfallBackend.h"
 
 
@@ -24,12 +25,15 @@ using namespace cppapp;
  */
 class App : public AppBase {
 private:
-	Ref<Input> input_;
+	// Ref<Input> input_;
 	
 	App(const App& other);
 
 protected:
-	inline Ref<Input> input() { return input_; }
+	// inline Ref<Input> input() { return input_; }
+	
+	Ref<Frontend> getFrontend();
+	Ref<Backend>  getBackend();
 	
 	virtual void setUp();
 	virtual int onRun();
@@ -38,6 +42,7 @@ public:
 	App();
 	virtual ~App();
 };
+
 
 #endif /* end of include guard: APP_TBSBM2YW */
 

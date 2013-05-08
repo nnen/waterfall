@@ -19,13 +19,16 @@ using namespace std;
 const double FFTBackend::PI = 4.0 * atan(1.0);
 
 
-FFTBackend::FFTBackend() :
+FFTBackend::FFTBackend(int bins, int overlap) :
 	Backend(),
-	binOverlap_(32768 - 8192),
-	bins_(32768)
+	binOverlap_(overlap /* 32768 - 8192 */),
+	bins_(bins /* 32768 */)
 {
+	if (binOverlap_ < 0) binOverlap_ = 0;
+	if (binOverlap_ >= bins_) binOverlap_ = bins_ - 1;
+	
 	bufferSize_ = sizeof(fftw_complex) * bins_;
-
+	
 	windowFn_ = new float[bufferSize_];
 	
 	window_ = (fftw_complex *) fftw_malloc(bufferSize_);
@@ -61,6 +64,8 @@ void FFTBackend::startStream(StreamInfo info)
 	
 	info_ = DataInfo();
 	
+	LOG_DEBUG("Starting FFT stream with time offset " << info.timeOffset << ", sample rate " << info.sampleRate << "Hz.");
+	
 	for (int i = 0; i < bins_; i++) {
 		//windowFn_[i] = sin(((float)i / (float)bufferSize_) * PI);
 		//windowFn_[i] = 0.5 * (
@@ -70,12 +75,12 @@ void FFTBackend::startStream(StreamInfo info)
 		//		(float)(bins_ - 1)
 		//	)
 		//);
-
+		
 		float a0 = 0.355768;
 		float a1 = 0.487396;
 		float a2 = 0.144232;
 		float a3 = 0.012604;
-
+		
 		windowFn_[i] = (
 			a0 -
 			a1 * cos(
@@ -132,6 +137,13 @@ void FFTBackend::process(const vector<Complex> &data, DataInfo info)
 		memcpy(inMark_, src, size * sizeof(in_[0]));
 		inMark_ += size;
 	}
+}
+
+
+void FFTBackend::endStream()
+{
+	Backend::endStream();
+	LOG_DEBUG("Ending FFT stream.");
 }
 
 

@@ -45,7 +45,9 @@ protected:
 	virtual void processFFT(const fftw_complex *data, int size, DataInfo info);
 	
 public:
-	WaterfallBackend(string origin,
+	WaterfallBackend(int bins,
+				  int overlap,
+				  string origin,
 				  int bufferSize,
 				  float leftFrequency,
 				  float rightFrequency);
