@@ -26,6 +26,8 @@ FFTBackend::FFTBackend(int bins, int overlap) :
 {
 	if (binOverlap_ < 0) binOverlap_ = 0;
 	if (binOverlap_ >= bins_) binOverlap_ = bins_ - 1;
+
+	LOG_DEBUG("FFT backend: bins = " << bins_ << ", overlap = " << binOverlap_);
 	
 	bufferSize_ = sizeof(fftw_complex) * bins_;
 	
@@ -131,7 +133,7 @@ void FFTBackend::process(const vector<Complex> &data, DataInfo info)
 		
 		info_.offset++;
 		info_.timeOffset = info_.timeOffset.addSamples(count, streamInfo_.sampleRate);
-		LOG_DEBUG("offset = " << info_.timeOffset << ", count = " << count << ", sr = " << streamInfo_.sampleRate);
+		//LOG_DEBUG("offset = " << info_.timeOffset << ", count = " << count << ", sr = " << streamInfo_.sampleRate);
 	}
 	
 	if (size > 0) {

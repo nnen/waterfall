@@ -23,7 +23,7 @@ private:
 	 */
 	JackFrontend(const JackFrontend& other);
 	
-	static int onJackInput(jack_nframes_t nframes, void *arg);
+	static int  onJackInput(jack_nframes_t nframes, void *arg);
 	static void onJackShutdown(void *arg);
 	
 	const char *leftInputName_;

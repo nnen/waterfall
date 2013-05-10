@@ -13,27 +13,27 @@
 #include <iostream>
 using namespace std;
 
-/**
- *
- */
+
+void* WaterfallBackend::snapshotThread()
+{
+	MutexLock lock(&mutex_);
+	
+	while (!endSnapshotThread_) {
+		snapshotCondition_.wait(mutex_);
+		makeSnapshot();
+	}
+
+	return NULL;
+}
+
+
 void WaterfallBackend::makeSnapshot()
 {
-	//int fits_create_file(fitsfile **fptr, char *filename, int *status)
-	//int fits_close_file(fitsfile *fptr, int *status)
-	
-	//int fits_create_img(fitsfile *fptr, int bitpix, int naxis, 
-     //                    long *naxes, int *status)
-	
-	//int fits_write_pix(fitsfile *fptr, int datatype, long *fpixel,
-     //                   long nelements, void *array, int *status);
-	
-	//int fits_write_key(fitsfile *fptr, int datatype, char *keyname, 
-     //                   void *value, char *comment, int *status)
-	
 	char *fileName = new char[1024];
 	sprintf(fileName, "!snapshot_%s_%d.fits",
 		   origin_.c_str(),
-		   (int)timeBuffer_[0].seconds());
+		   (int)outBuffer_.times[0].seconds());
+		   //(int)timeBuffer_[0].seconds());
 	
 	int status = 0;
 	fitsfile *fptr;
@@ -47,7 +47,8 @@ void WaterfallBackend::makeSnapshot()
 	}
 	
 	int width = rightBin_ - leftBin_;
-	long dimensions[2] = { width, bufferMark_ };
+	//long dimensions[2] = { width, bufferMark_ };
+	long dimensions[2] = { width, outBuffer_.mark };
 	fits_create_img(fptr, FLOAT_IMG, 2, dimensions, &status);
 	if (status) {
 		cerr << "ERROR: Failed to create primary HDU in FITS file (code: " <<
@@ -58,7 +59,8 @@ void WaterfallBackend::makeSnapshot()
 	fits_write_key(fptr, TSTRING, "CTYPE2", (void*)ctype2, "", &status);
 	float crpix2 = 1;
 	fits_write_key(fptr, TFLOAT, "CRPIX2", (void*)&crpix2, "", &status);
-	float crval2 = (float)timeBuffer_[0].time.tv_sec;
+	//float crval2 = (float)timeBuffer_[0].time.tv_sec;
+	float crval2 = (float)outBuffer_.times[0].seconds();
 	fits_write_key(fptr, TFLOAT, "CRVAL2", (void*)&crval2, "", &status);
 	float cdelt2 = 1.0 / fftSampleRate_;
 	fits_write_key(fptr, TFLOAT, "CDELT2", (void*)&cdelt2, "", &status);
@@ -83,12 +85,14 @@ void WaterfallBackend::makeSnapshot()
 	}
 	
 	long fpixel[2] = { 1, 1 };
-	for (int y = 0; y < bufferMark_; y++) {
+	//for (int y = 0; y < bufferMark_; y++) {
+	for (int y = 0; y < outBuffer_.mark; y++) {
 		fits_write_pix(fptr,
 					TFLOAT,
 					fpixel,
 					width,
-					(void*)(buffer_[y] + leftBin_),
+					//(void*)(buffer_[y] + leftBin_),
+					(void*)(outBuffer_.getRow(y) + leftBin_),
 					&status);
 		fpixel[1]++;
 		if (status) break;
@@ -105,66 +109,90 @@ void WaterfallBackend::makeSnapshot()
 	}
 	
 	delete [] fileName;
+
+	LOG_DEBUG("Finished writing snapshot.");
+}
+
+
+void WaterfallBackend::startSnapshot()
+{
+	MutexLock lock(&mutex_);
+	
+	inBuffer_.swap(outBuffer_);
+	snapshotCondition_.signal();
+	
+	//bufferMark_ = 0;
+	inBuffer_.rewind();
 }
 
 
 void WaterfallBackend::processFFT(const fftw_complex *data, int size, DataInfo info)
 {
-	float *row = buffer_[bufferMark_];
+	//float *row = buffer_[bufferMark_];
+	//float *row = inBuffer_.getRow(bufferMark_);
+	float *row = inBuffer_.addRow(info.timeOffset);
 	
-	for (int i = 0; i < size; i++) {
-		row[i] = sqrt(
+	int halfSize = size / 2;
+	for (int i = 0; i < halfSize; i++) {
+		row[halfSize - i - 1] = sqrt(
 			data[i][0] * data[i][0] +
 			data[i][1] * data[i][1]
 		);
 	}
+	for (int i = halfSize; i < size; i++) {
+		row[size - (i - halfSize) - 1] = sqrt(
+			data[i][0] * data[i][0] +
+			data[i][1] * data[i][1]
+		);
+	}
+	//for (int i = 0; i < size; i++) {
+	//	row[i] = sqrt(
+	//		data[i][0] * data[i][0] +
+	//		data[i][1] * data[i][1]
+	//	);
+	//}
 	
-	timeBuffer_[bufferMark_] = info.timeOffset;
+	//timeBuffer_[bufferMark_] = info.timeOffset;
+	//inBuffer_.times[bufferMark_] = info.timeOffset;
 	
-	if (++bufferMark_ >= bufferSize_) {
-		makeSnapshot();
-		bufferMark_ = 0;
+	//if (++bufferMark_ >= bufferSize_) {
+		//makeSnapshot();
+		//bufferMark_ = 0;
+	if (inBuffer_.isFull()) {
+		startSnapshot();
 	}
 }
 
 
-/**
- * Constructor.
- */
-WaterfallBackend::WaterfallBackend(int bins,
-							int overlap,
+WaterfallBackend::WaterfallBackend(int    bins,
+							int    overlap,
 							string origin,
-							int bufferSize,
-							float leftFrequency,
-							float rightFrequency) :
+							int    bufferSize,
+							float  leftFrequency,
+							float  rightFrequency) :
 	FFTBackend(bins, overlap),
 	origin_(origin),
 	bufferSize_(bufferSize),
-	buffer_(NULL),
-	bufferMark_(0),
+	//buffer_(NULL),
+	//bufferMark_(0),
+	inBuffer_(bufferSize, bins_),
+	outBuffer_(bufferSize, bins_),
 	leftFrequency_(leftFrequency),
 	rightFrequency_(rightFrequency)
 {
-	buffer_ = new float*[bufferSize_];
-	for (float **a = buffer_; a < (buffer_ + bufferSize_); a++) {
-		*a = new float[bins_];
-	}
-	
-	timeBuffer_.resize(bufferSize_);
+	//timeBuffer_.resize(bufferSize_);
+	LOG_DEBUG("Waterfall backend: buffer size = " << bufferSize << ", bins = " << bins_);
 }
 
 
-/**
- * Destructor
- */
 WaterfallBackend::~WaterfallBackend()
 {
-	for (float **a = buffer_; a < (buffer_ + bufferSize_); a++) {
-		delete [] *a;
-		*a = NULL;
-	}
-	delete [] buffer_;
-	buffer_ = NULL;
+	//for (float **a = buffer_; a < (buffer_ + bufferSize_); a++) {
+	//	delete [] *a;
+	//	*a = NULL;
+	//}
+	//delete [] buffer_;
+	//buffer_ = NULL;
 }
 
 
@@ -184,6 +212,11 @@ void WaterfallBackend::startStream(StreamInfo info)
 		leftBin_  = frequencyToBin(leftFrequency_);
 		rightBin_ = frequencyToBin(rightFrequency_);
 	}
+	
+	endSnapshotThread_ = false;
+	snapshotThread_ =
+		new MethodThread<void, WaterfallBackend>(this,
+										 &WaterfallBackend::snapshotThread);
 }
 
 
@@ -194,9 +227,16 @@ void WaterfallBackend::endStream()
 {
 	FFTBackend::endStream();
 	
-	if (bufferMark_ > 0) {
-		makeSnapshot();
+	//if (bufferMark_ > 0) {
+	if (inBuffer_.mark > 0) {
+		startSnapshot();
+		//makeSnapshot();
 	}
+	
+	endSnapshotThread_ = true;
+	snapshotThread_->join();
+	delete snapshotThread_;
+	snapshotThread_ = NULL;
 }
 
 
