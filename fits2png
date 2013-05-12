@@ -1,0 +1,152 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""fits2png module.
+
+Author: Jan Milík <milikjan@fit.cvut.cz>
+"""
+
+
+import sys
+import argparse
+
+if sys.version_info < (2, 7):
+    sys.exit("Python version 2.7 or higher required.")
+
+try:
+    import pyfits
+except ImportError:
+    sys.exit("pyfits library not found.")
+
+try:
+    import Image
+except ImportError:
+    sys.exit("PIL (Python Imaging Library) not found.")
+
+try:
+    import numpy
+except ImportError:
+    sys.exit("numpy library not found.")
+
+
+def get_image_info(image):
+    return (
+        image.header["NAXIS1"],
+        image.header["NAXIS2"],
+        image.data.min(),
+        image.data.max(),
+        image.data.mean(),
+        image.data.var(),
+    )
+
+
+class Converter(object):
+    def __init__(self):
+        self.color_fn = self.default_color_fn
+        self.file_name_fn = self.default_file_name_fn
+
+        self.minv = 0
+        self.maxv = 1
+        self.mean = 0
+        self.var  = 1
+
+        self.minv_override = None
+        self.maxv_override = None
+    
+    def default_color_fn(self, value, minv, maxv, mean, var):
+        return (value - minv) / (maxv - minv)
+    
+    def default_file_name_fn(self, fn):
+        return fn + ".png"
+    
+    def convert(self, image, file_name):
+        if image.header["NAXIS"] <> 2:
+            raise "Expected 2 dimensional image."
+        
+        width, height, minv, maxv, mean, var = get_image_info(image)
+        
+        print "size = %d, %d" % (width, height)
+        print "min = %f" % (minv, )
+        print "max = %f" % (maxv, )
+        print "mean = %f" % (mean, )
+        print "var = %f" % (var, )
+        
+        minv = self.minv_override or minv
+        maxv = self.maxv_override or maxv
+        
+        data = numpy.log(image.data)
+        minv = data.min()
+        maxv = data.max()
+        mean = data.mean()
+        var = data.var()
+        
+        print "Transformed:"
+        print "min = %f" % (minv, )
+        print "max = %f" % (maxv, )
+        print "mean = %f" % (mean, )
+        print "var = %f" % (var, )
+        
+        result = Image.new("L", (width, height))
+        MAX_PIXEL = 255
+        
+        i = 0
+        pixels = numpy.zeros(width * height, numpy.uint8)
+        
+        sys.stdout.write("0%")
+        sys.stdout.flush()
+        
+        for y in range(height):
+            for x in range(width):
+                norm = self.color_fn(data[y][x], minv, maxv, mean, var)
+                norm = max(0.0, norm)
+                norm = min(1.0, norm)
+                pixels[i] = norm * MAX_PIXEL
+                i += 1
+            sys.stdout.write("\r%d%%" % ((float(y) / float(height)) * 100, ))
+            sys.stdout.flush()
+        
+        sys.stdout.write("\rDone.\n")
+        
+        result.putdata(pixels)
+        result.save(self.file_name_fn(file_name), "PNG")
+
+
+def main():
+    parser = argparse.ArgumentParser(description = "FITS to PNG converter.")
+    parser.add_argument("files", metavar = "FILE", nargs = "+",
+                        help = "a FITS file to convert")
+    parser.add_argument("--min", metavar = "MIN_VALUE",
+                        type = float, nargs = "?", default = None,
+                        help = "minimal value cut-off")
+    parser.add_argument("--max", metavar = "MAX_VALUE",
+                        type = float, nargs = "?", default = None,
+                        help = "maximal value cut-off")
+    args = parser.parse_args()
+    
+    converter = Converter()
+    converter.minv_override = args.min
+    converter.maxv_override = args.max
+    
+    for file_name in args.files:
+        f = None
+        print "%s %s %s" % (
+            10 * "=",
+            file_name,
+            10 * "=",
+        )
+        try:
+            f = pyfits.open(file_name)
+            #print f[0].header
+            #print get_image_info(f[0])
+            #fits_to_png(f[0])
+            converter.convert(f[0], file_name)
+            f.close()
+        #except Exception as e:
+        #    print "\nERROR: %s" % (e, )
+        finally:
+            if f:
+                f.close()
+
+
+if __name__ == "__main__":
+    main()
+
