@@ -8,6 +8,7 @@ Author: Jan Milík <milikjan@fit.cvut.cz>
 
 import sys
 import argparse
+import datetime
 
 if sys.version_info < (2, 7):
     sys.exit("Python version 2.7 or higher required.")
@@ -19,6 +20,8 @@ except ImportError:
 
 try:
     import Image
+    import ImageFont
+    import ImageDraw
 except ImportError:
     sys.exit("PIL (Python Imaging Library) not found.")
 
@@ -43,22 +46,26 @@ class Converter(object):
     def __init__(self):
         self.color_fn = self.default_color_fn
         self.file_name_fn = self.default_file_name_fn
-
+        
         self.minv = 0
         self.maxv = 1
         self.mean = 0
         self.var  = 1
-
+        
         self.minv_override = None
         self.maxv_override = None
+        
+        self.font = None
     
     def default_color_fn(self, value, minv, maxv, mean, var):
         return (value - minv) / (maxv - minv)
     
-    def default_file_name_fn(self, fn):
-        return fn + ".png"
+    def default_file_name_fn(self, fn, frmt):
+        return fn + "." + frmt
     
-    def convert(self, image, file_name):
+    def convert(self, image, file_name, output_width = None, output_jpeg = False):
+        if "NAXIS" not in image.header:
+            raise "Image doesn't have \"NAXIS\" header."
         if image.header["NAXIS"] <> 2:
             raise "Expected 2 dimensional image."
         
@@ -73,7 +80,8 @@ class Converter(object):
         minv = self.minv_override or minv
         maxv = self.maxv_override or maxv
         
-        data = numpy.log(image.data)
+        #data = numpy.log10(image.data)
+        data = image.data
         minv = data.min()
         maxv = data.max()
         mean = data.mean()
@@ -95,31 +103,89 @@ class Converter(object):
         sys.stdout.flush()
         
         for y in range(height):
-            for x in range(width):
-                norm = self.color_fn(data[y][x], minv, maxv, mean, var)
-                norm = max(0.0, norm)
-                norm = min(1.0, norm)
-                pixels[i] = norm * MAX_PIXEL
-                i += 1
+            row = self.color_fn(data[y], minv, maxv, mean, var) * MAX_PIXEL
+            
+            pixels[i:(i + len(row))] = row
+            i += len(row)
+            
             sys.stdout.write("\r%d%%" % ((float(y) / float(height)) * 100, ))
             sys.stdout.flush()
         
         sys.stdout.write("\rDone.\n")
         
         result.putdata(pixels)
-        result.save(self.file_name_fn(file_name), "PNG")
+        
+        if ((output_width is not None) and
+            (output_width < width)):
+            print "Resizing image..."
+            ratio = float(output_width) / float(width)
+            size = (output_width, int(float(height) * ratio))
+            result = result.resize(size, Image.ANTIALIAS)
+        
+        origin = image.header.get("ORIGIN", "-")
+        time = datetime.datetime.fromtimestamp(
+            image.header.get("CRVAL2", 0))
+        
+        draw = ImageDraw.Draw(result)
+        self.draw_lines(draw, (10, 10), [
+            " Origin: %s " % (origin, ),
+            " Time: %s " % (time.strftime("%Y-%m-%d %H:%M:%S"), ),
+        ])
+        
+        if output_jpeg:
+            result.save(self.file_name_fn(file_name, "jpeg"), "JPEG")
+        else:
+            result.save(self.file_name_fn(file_name, "png"), "PNG")
+    
+    def draw_lines(self, draw, position, lines):
+        if self.font is None:
+            try:
+                self.font = ImageFont.truetype("image_font.ttf", 14)
+            except Exception as e:
+                print "ERROR: %s" % (e, )
+                self.font = ImageFont.load_default()
+        
+        width = 0
+        height = 0
+        size = (0, 0)
+        
+        for line in lines:
+            size = self.font.getsize(line)
+            width = max(width, size[0])
+            height += size[1]
+        
+        margin = size[1] / 4
+        width += margin * 2
+        height += margin + margin * len(lines)
+        
+        draw.rectangle((position, (position[0] + width, position[1] + height)),
+                       fill = 255)
+        
+        x = position[0] + margin
+        y = position[1] + margin
+        for line in lines:
+            size = self.font.getsize(line)
+            draw.text((x, y), line, font = self.font, fill = 0)
+            y += size[1] + margin
 
 
 def main():
     parser = argparse.ArgumentParser(description = "FITS to PNG converter.")
     parser.add_argument("files", metavar = "FILE", nargs = "+",
                         help = "a FITS file to convert")
+    parser.add_argument("--headers", action = "store_true",
+                        help = "show FITS headers")
+    parser.add_argument("--jpeg", action = "store_true",
+                        help = "output JPEG instead of PNG")
     parser.add_argument("--min", metavar = "MIN_VALUE",
                         type = float, nargs = "?", default = None,
                         help = "minimal value cut-off")
     parser.add_argument("--max", metavar = "MAX_VALUE",
                         type = float, nargs = "?", default = None,
                         help = "maximal value cut-off")
+    parser.add_argument("--width", metavar = "WIDTH",
+                        type = int, nargs = "?", default = None,
+                        help = "output image width in pixels")
     args = parser.parse_args()
     
     converter = Converter()
@@ -135,10 +201,12 @@ def main():
         )
         try:
             f = pyfits.open(file_name)
-            #print f[0].header
-            #print get_image_info(f[0])
-            #fits_to_png(f[0])
-            converter.convert(f[0], file_name)
+            if args.headers:
+                print f[0].header
+                continue
+            converter.convert(f[0], file_name,
+                              output_width = args.width,
+                              output_jpeg = args.jpeg)
             f.close()
         #except Exception as e:
         #    print "\nERROR: %s" % (e, )
