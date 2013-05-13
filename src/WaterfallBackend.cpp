@@ -14,6 +14,56 @@
 using namespace std;
 
 
+void WaterfallBackend::writeHeader(fitsfile   *file,
+							const char *keyword,
+							int         type,
+							void       *value,
+							const char *comment,
+							int        *status)
+{
+	//char keywordBuffer[FLEN_KEYWORD];
+	//char commentBuffer[FLEN_COMMENT];
+	//
+	//strcpy(keywordBuffer, keyword);
+	//strcpy(commentBuffer, comment);
+	
+	//fits_write_key(file, type, keywordBuffer, value, commentBuffer, status);
+	fits_write_key(file, type, keyword, value, comment, status);
+}
+
+
+void WaterfallBackend::writeHeader(fitsfile   *file,
+							const char *keyword,
+							const char *value,
+							const char *comment,
+							int        *status)
+{
+	char valueBuffer[FLEN_VALUE];
+	strcpy(valueBuffer, value);
+	writeHeader(file, keyword, TSTRING, (void*)valueBuffer, comment, status);
+}
+
+
+void WaterfallBackend::writeHeader(fitsfile   *file,
+							const char *keyword,
+							float       value,
+							const char *comment,
+							int        *status)
+{
+	writeHeader(file, keyword, TFLOAT, (void*)&value, comment, status);
+}
+
+
+void WaterfallBackend::writeHeader(fitsfile   *file,
+							const char *keyword,
+							int         value,
+							const char *comment,
+							int        *status)
+{
+	writeHeader(file, keyword, TINT, (void*)&value, comment, status);
+}
+
+
 void* WaterfallBackend::snapshotThread()
 {
 	MutexLock lock(&mutex_);
@@ -29,10 +79,13 @@ void* WaterfallBackend::snapshotThread()
 
 void WaterfallBackend::makeSnapshot()
 {
+	WFTime time = outBuffer_.times[0];
+	
 	char *fileName = new char[1024];
-	sprintf(fileName, "!snapshot_%s_%d.fits",
+	sprintf(fileName, "!snapshot_%s_%s.fits",
 		   origin_.c_str(),
-		   (int)outBuffer_.times[0].seconds());
+		   time.format("%Y_%m_%d_%H_%M_%S").c_str());
+		   //(int)outBuffer_.times[0].seconds());
 		   //(int)timeBuffer_[0].seconds());
 	
 	int status = 0;
@@ -55,29 +108,45 @@ void WaterfallBackend::makeSnapshot()
 			status << ")." << endl;
 	}
 	
-	char ctype2[] = { 'T', 'i', 'm', 'e', 0 };
-	fits_write_key(fptr, TSTRING, "CTYPE2", (void*)ctype2, "", &status);
-	float crpix2 = 1;
-	fits_write_key(fptr, TFLOAT, "CRPIX2", (void*)&crpix2, "", &status);
-	//float crval2 = (float)timeBuffer_[0].time.tv_sec;
-	float crval2 = (float)outBuffer_.times[0].seconds();
-	fits_write_key(fptr, TFLOAT, "CRVAL2", (void*)&crval2, "", &status);
-	float cdelt2 = 1.0 / fftSampleRate_;
-	fits_write_key(fptr, TFLOAT, "CDELT2", (void*)&cdelt2, "", &status);
+	writeHeader(fptr, "ORIGIN", origin_.c_str(), "", &status);
+	//writeHeader(fptr, "DATE", WFTime::now().format("%Y-%m-%dT%H:%M:%S").c_str(), "", &status);
+	fits_write_date(fptr, &status);
+	fits_write_comment(fptr, WFTime::now().format("Local time: %Y-%m-%d %H:%M:%S %Z", true).c_str(), &status);
+	writeHeader(fptr, "DATE-OBS", time.format("%Y-%m-%dT%H:%M:%S").c_str(), "observation date (UTC)", &status);
 	
-	char ctype1[] = { 'F', 'r', 'e', 'q', 0 };
-	fits_write_key(fptr, TSTRING, "CTYPE1", (void*)ctype1, "", &status);
-	float crpix1 = 1.0;
-	fits_write_key(fptr, TFLOAT, "CRPIX1", (void*)&crpix1, "", &status);
-	float crval1 = leftFrequency_;
-	fits_write_key(fptr, TFLOAT, "CRVAL1", (void*)&crval1, "", &status);
-	float cdelt1 = binToFrequency();
-	fits_write_key(fptr, TFLOAT, "CDELT1", (void*)&cdelt1, "", &status);
+	writeHeader(fptr, "CTYPE2", "TIME",                      "in seconds", &status);
+	writeHeader(fptr, "CRPIX2", 1,                           "",           &status);
+	writeHeader(fptr, "CRVAL2", (float)time.seconds(),       "",           &status);
+	writeHeader(fptr, "CDELT2", 1.f / (float)fftSampleRate_, "",           &status);
 	
-	char origin[origin_.size() + 1];
-	origin_.copy(origin, origin_.size());
-	origin[origin_.size()] = 0;
-	fits_write_key(fptr, TSTRING, "ORIGIN", (void*)origin, "", &status);
+	writeHeader(fptr, "CTYPE1", "FREQ",                      "in Hz", &status);
+	writeHeader(fptr, "CRPIX1", 1.f,                         "",      &status);
+	writeHeader(fptr, "CRVAL1", (float)leftFrequency_,       "",      &status);
+	writeHeader(fptr, "CDELT1", (float)binToFrequency(),     "",      &status);
+	
+	//char ctype2[] = { 'T', 'i', 'm', 'e', 0 };
+	//fits_write_key(fptr, TSTRING, "CTYPE2", (void*)ctype2, "", &status);
+	//float crpix2 = 1;
+	//fits_write_key(fptr, TFLOAT, "CRPIX2", (void*)&crpix2, "", &status);
+	////float crval2 = (float)timeBuffer_[0].time.tv_sec;
+	//float crval2 = (float)outBuffer_.times[0].seconds();
+	//fits_write_key(fptr, TFLOAT, "CRVAL2", (void*)&crval2, "", &status);
+	//float cdelt2 = 1.0 / fftSampleRate_;
+	//fits_write_key(fptr, TFLOAT, "CDELT2", (void*)&cdelt2, "", &status);
+	
+	//char ctype1[] = { 'F', 'r', 'e', 'q', 0 };
+	//fits_write_key(fptr, TSTRING, "CTYPE1", (void*)ctype1, "", &status);
+	//float crpix1 = 1.0;
+	//fits_write_key(fptr, TFLOAT, "CRPIX1", (void*)&crpix1, "", &status);
+	//float crval1 = leftFrequency_;
+	//fits_write_key(fptr, TFLOAT, "CRVAL1", (void*)&crval1, "", &status);
+	//float cdelt1 = binToFrequency();
+	//fits_write_key(fptr, TFLOAT, "CDELT1", (void*)&cdelt1, "", &status);
+	
+	//char origin[origin_.size() + 1];
+	//origin_.copy(origin, origin_.size());
+	//origin[origin_.size()] = 0;
+	//fits_write_key(fptr, TSTRING, "ORIGIN", (void*)origin, "", &status);
 	
 	if (status) {
 		cerr << "ERROR: Error occured while writing FITS file header (code: " <<

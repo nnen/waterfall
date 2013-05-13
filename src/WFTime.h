@@ -10,6 +10,7 @@
 #define WFTIME_20LZQV24
 
 #include <ostream>
+#include <ctime>
 
 using namespace std;
 
@@ -26,12 +27,13 @@ struct WFTime {
 public:
 	struct timeval time;
 	
-	inline time_t seconds() { return time.tv_sec; }
-	inline time_t microseconds() { return time.tv_usec; }
+	inline time_t seconds() const { return time.tv_sec; }
+	inline time_t microseconds() const { return time.tv_usec; }
 	
-	inline int milliseconds()
+	inline float toMilliseconds()
 	{
-		return (time.tv_usec / US_IN_MS);
+		return (((float)seconds() * MS_IN_SECOND) +
+			   ((float)microseconds() / (float)US_IN_MS));
 	}
 	
 	WFTime()
@@ -71,6 +73,18 @@ public:
 		//	microseconds % US_IN_SECOND
 		//);
 	}
+	
+	/**
+	 * Formats the time using a format string.
+	 * 
+	 * The syntax of the format string is the same as for the standard
+	 * strftime function (see $ man strftime).
+	 *
+	 * \param  fmt   format string
+	 * \param  local if true, assume the time is local, otherwise use UTC
+	 * \return       formated date
+	 */
+	string format(const char *fmt, bool local = false) const;
 	
 	inline static WFTime now()
 	{

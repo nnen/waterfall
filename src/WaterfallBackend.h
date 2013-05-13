@@ -113,6 +113,28 @@ private:
 	Condition                             snapshotCondition_;
 	bool                                  endSnapshotThread_;
 	
+	void writeHeader(fitsfile   *file,
+				  const char *keyword,
+				  int         type,
+				  void       *value,
+				  const char *comment,
+				  int        *status);
+	void writeHeader(fitsfile   *file,
+				  const char *keyword,
+				  const char *value,
+				  const char *comment,
+				  int        *status);
+	void writeHeader(fitsfile   *file,
+				  const char *keyword,
+				  float       value,
+				  const char *comment,
+				  int        *status);
+	void writeHeader(fitsfile   *file,
+				  const char *keyword,
+				  int         value,
+				  const char *comment,
+				  int        *status);
+	
 	void* snapshotThread();
 	void  makeSnapshot();
 	void  startSnapshot();
