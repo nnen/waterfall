@@ -32,7 +32,7 @@ struct WaterfallBuffer {
 	{}
 	
 	WaterfallBuffer(int size, int bins) :
-		size(size), bins(bins)
+		size(size), bins(bins), mark(0)
 	{
 		resize(size, bins);
 	}
@@ -44,6 +44,8 @@ struct WaterfallBuffer {
 		
 		data.resize(size * bins);
 		times.resize(size);
+		
+		rewind();
 	}
 	
 	void rewind()
