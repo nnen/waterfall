@@ -46,6 +46,21 @@ FN_IDENTITY = lambda image: image.data
 FN_LOG      = lambda image: numpy.log(image.data)
 
 
+# A UTC class.
+class UTC(datetime.tzinfo):
+    """UTC"""
+    ZERO = datetime.timedelta(0)
+    
+    def utcoffset(self, dt):
+        return self.ZERO
+    
+    def tzname(self, dt):
+        return "UTC"
+    
+    def dst(self, dt):
+        return self.ZERO
+
+
 class View(object):
     @property
     def requested_size(self):
@@ -188,14 +203,14 @@ class AxisView(View):
         for i in range(10):
             self.ticks = direction * (10.0 ** i)
             t, max_size = self._get_ticks(self.axis.length)
-            max_size = max(max_size)
+            max_size = max_size[1] if self.vertical else max_size[0]
             physical = self.axis.to_physical_length(self.ticks)
             if (physical > 20) and (physical > max_size):
                 break
             
             self.ticks = direction * (10.0 ** i) * 2
             t, max_size = self._get_ticks(self.axis.length)
-            max_size = max(max_size)
+            max_size = max_size[1] if self.vertical else max_size[0]
             physical = self.axis.to_physical_length(self.ticks)
             if (physical > 20) and (physical > max_size):
                 break
@@ -216,7 +231,7 @@ class AxisView(View):
             label_size = (0, 0)
         
         if self.vertical:
-            self._requested_size = (self.ticks_size + label_size[1] + self.margin, self.axis.length, )
+            self._requested_size = (self.ticks_size + label_size[0] + self.margin, self.axis.length, )
         else:
             self._requested_size = (self.axis.length, int(self.ticks_size + label_size[1] + self.margin))
     
@@ -228,8 +243,16 @@ class AxisView(View):
         max_width = 0
         max_height = 0
         
+        if self.axis.type and self.axis.type.upper() == "TIME":
+            print "TIME"
+            text_fn = lambda x: datetime.datetime.fromtimestamp(x, UTC()).strftime("%H:%M:%S")
+        else:
+            print "OTHER"
+            text_fn = lambda x: "%d" % (x, )
+        
         while physical < length:
-            text = "%d" % (logical, )
+            #text = "%d" % (logical, )
+            text = text_fn(logical)
             size = self.font.getsize(text)
             max_width = max(max_width, size[0])
             max_height = max(max_height, size[1])
@@ -251,17 +274,29 @@ class AxisView(View):
         logical = self.axis.to_logical(physical)
 
         if self.vertical:
-            print repr(self._get_ticks(height))
             tick_end   = x + width
             tick_start = tick_end - self.ticks_size
             
             draw.line((tick_end, y, tick_end, y + height), fill = self.foreground)
-            while physical < height:
-                draw.line((tick_start, y + physical, tick_end, y + physical), fill = self.foreground)
-                draw.text((tick_start, y + physical), "%d" % logical, fill = self.foreground)
-                logical += self.ticks
-                physical = self.axis.to_physical(logical)
+            #while physical < height:
+            #    draw.line((tick_start, y + physical, tick_end, y + physical), fill = self.foreground)
+            #    draw.text((tick_start, y + physical), "%d" % logical, fill = self.foreground)
+            #    logical += self.ticks
+            #    physical = self.axis.to_physical(logical)
 
+            for physical, logical, lbl_size in self._get_ticks(height)[0]:
+                draw.line((tick_start, y + physical, tick_end, y + physical), fill = self.foreground)
+                draw.text((tick_start, y + physical), logical, fill = self.foreground)
+            
+            label = (" %s" % (self.axis.type, )) or ""
+            if len(self.axis.type) > 0:
+                label_size = self.font.getsize(label)
+                #label_x = x + width / 2 - label_size[0] / 2
+                label_x = x
+                #label_y = y + height - self.ticks_size + self.margin
+                label_y = y + height / 2 - label_size[1] / 2
+                draw.text((label_x, label_y), label, font = self.font, fill = self.foreground)
+            
             #label = self.axis.type or ""
             #if len(self.axis.type) > 0:
             #    label_size = self.font.getsize(label)
@@ -270,7 +305,6 @@ class AxisView(View):
             #    d.text((0, 0), label, font = self.font, fill = self.foreground)
             #    label_img = label_img.rotate(90)
         else:
-            print repr(self._get_ticks(width))
             tick_end = y
             tick_start = tick_end + self.ticks_size
             
@@ -290,7 +324,7 @@ class AxisView(View):
                 label_size = self.font.getsize(label)
                 label_x = x + width / 2 - label_size[0] / 2
                 label_y = y + height - self.ticks_size + self.margin
-                draw.text((label_x, label_y), str(self.axis.type), font = self.font, fill = self.foreground)
+                draw.text((label_x, label_y), label, font = self.font, fill = self.foreground)
 
 
 class Lines(View):
@@ -479,6 +513,8 @@ class Converter(object):
             ratio = float(self.output_width) / float(width)
             size = (self.output_width, int(float(height) * ratio))
             result = result.resize(size, Image.ANTIALIAS)
+            for axis in axes:
+                axis.scale = ratio
         
         #size = result.size
         #result = result.crop((0, -100, size[0], size[1]))
@@ -511,7 +547,8 @@ class Converter(object):
         
         draw = ImageDraw.Draw(dest)
         legend.draw(draw, (y_size[0], 0, y_size[0] + size[0], legend_size[1]))
-        y_view.draw(draw, (0, legend_size[1], y_size[0], legend_size[1] + y_size[1], ))
+        #y_view.draw(draw, (0, legend_size[1], y_size[0], legend_size[1] + y_size[1], ))
+        y_view.draw(draw, (0, legend_size[1], y_size[0], y_size[1], ))
         x_view.draw(draw, (y_size[0], legend_size[1] + size[1], x_size[0], x_size[1], ))
         
         return dest
