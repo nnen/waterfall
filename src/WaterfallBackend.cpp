@@ -234,11 +234,11 @@ void WaterfallBackend::processFFT(const fftw_complex *data, int size, DataInfo i
 
 
 WaterfallBackend::WaterfallBackend(int    bins,
-							int    overlap,
-							string origin,
-							int    bufferSize,
-							float  leftFrequency,
-							float  rightFrequency) :
+                                   int    overlap,
+                                   string origin,
+                                   int    bufferSize,
+                                   float  leftFrequency,
+                                   float  rightFrequency) :
 	FFTBackend(bins, overlap),
 	origin_(origin),
 	bufferSize_(bufferSize),
@@ -246,8 +246,8 @@ WaterfallBackend::WaterfallBackend(int    bins,
 	//bufferMark_(0),
 	inBuffer_(bufferSize, bins_),
 	outBuffer_(bufferSize, bins_),
-	leftFrequency_(leftFrequency),
-	rightFrequency_(rightFrequency)
+	leftFrequency_((leftFrequency < rightFrequency) ? leftFrequency : rightFrequency),
+	rightFrequency_((leftFrequency > rightFrequency) ? leftFrequency : rightFrequency)
 {
 	//timeBuffer_.resize(bufferSize_);
 	LOG_DEBUG("Waterfall backend: buffer size = " << bufferSize << ", bins = " << bins_);

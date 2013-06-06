@@ -27,7 +27,10 @@ Ref<Frontend> App::getFrontend()
 		return new WAVStream(new FileInput(fileName));
 	} else {
 		LOG_INFO("Using JACK frontend.");
-		return new JackFrontend(NULL, NULL);
+		return new JackFrontend(
+			config()->get("jack_left_port",  "system:capture_1")->asString().c_str(),
+			config()->get("jack_right_port", "system:capture_2")->asString().c_str()
+		);
 	}
 }
 
