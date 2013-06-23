@@ -38,9 +38,9 @@ Configuration
 -------------
 
 The program attempts to read a config file in the user's home directory called
-`.waterfall`. Example config file is stored in `waterfall/watefall.cfg. You can
-copy it to your home directory and edit as you like
-(`$ mv waterfall.cfg $HOME/.waterfall`).
+`.waterfall`. Example config file is stored in `waterfall/watefall.cfg`. You
+can copy it to your home directory and edit as you like (`$ mv waterfall.cfg
+$HOME/.waterfall`).
 
 
 Usage
