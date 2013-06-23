@@ -236,21 +236,21 @@ void WaterfallBackend::processFFT(const fftw_complex *data, int size, DataInfo i
 WaterfallBackend::WaterfallBackend(int    bins,
                                    int    overlap,
                                    string origin,
-                                   int    bufferSize,
+                                   float  snapshotLength,
                                    float  leftFrequency,
                                    float  rightFrequency) :
 	FFTBackend(bins, overlap),
 	origin_(origin),
-	bufferSize_(bufferSize),
+	snapshotLength_(snapshotLength),
 	//buffer_(NULL),
 	//bufferMark_(0),
-	inBuffer_(bufferSize, bins_),
-	outBuffer_(bufferSize, bins_),
+	inBuffer_(0, bins_),
+	outBuffer_(0, bins_),
 	leftFrequency_((leftFrequency < rightFrequency) ? leftFrequency : rightFrequency),
 	rightFrequency_((leftFrequency > rightFrequency) ? leftFrequency : rightFrequency)
 {
 	//timeBuffer_.resize(bufferSize_);
-	LOG_DEBUG("Waterfall backend: buffer size = " << bufferSize << ", bins = " << bins_);
+	//LOG_DEBUG("Waterfall backend: buffer size = " << bufferSize << ", bins = " << bins_);
 }
 
 
@@ -271,6 +271,20 @@ WaterfallBackend::~WaterfallBackend()
 void WaterfallBackend::startStream(StreamInfo info)
 {
 	FFTBackend::startStream(info);
+	
+	int bufferSize = (int)ceil(snapshotLength_ * fftSampleRate_);
+	if (bufferSize < 1) {
+		bufferSize = 1;
+		LOG_WARNING("Waterfall backend: buffer size too small, using buffer size = " << bufferSize);
+	}
+	float realLength = (float)bufferSize / fftSampleRate_;
+	LOG_DEBUG("Waterfall backend: snapshot length = " << snapshotLength_ << "s" <<
+			", FFT sample rate = " << fftSampleRate_ << "Hz" <<
+			", buffer size (length * sample rate) = " << bufferSize << " samples" << 
+			", real snapshot length = " << realLength << "s");
+	
+	inBuffer_.resize(bufferSize, bins_);
+	outBuffer_.resize(bufferSize, bins_);
 	
 	if (leftFrequency_ == rightFrequency_) {
 		leftFrequency_ = -(float)info.sampleRate;

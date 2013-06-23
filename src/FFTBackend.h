@@ -25,7 +25,7 @@ private:
 	//int bins_;
 	int binOverlap_;
 	int bufferSize_;
-
+	
 	float        *windowFn_;
 	
 	fftw_complex *window_;
@@ -37,6 +37,7 @@ private:
 	
 protected:
 	int   bins_;
+	/// Number of FFT results per second (Hz).
 	float fftSampleRate_;
 	
 	virtual void processFFT(const fftw_complex *data, int size, DataInfo info) {}

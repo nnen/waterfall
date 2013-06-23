@@ -39,8 +39,11 @@ struct WaterfallBuffer {
 	
 	void resize(int size, int bins)
 	{
-		assert(size > 0);
+		assert(size >= 0);
 		assert(bins > 0);
+		
+		this->size = size;
+		this->bins = bins;
 		
 		data.resize(size * bins);
 		times.resize(size);
@@ -96,11 +99,8 @@ private:
 	
 	string           origin_;
 	
-	int              bufferSize_; // in samples
-	//float          **buffer_;
-	//int              bufferMark_;
-	
-	//vector<WFTime>   timeBuffer_;
+	/// Snapshot length in seconds (determines the size of the buffer).
+	float            snapshotLength_;
 	
 	WaterfallBuffer  inBuffer_;
 	WaterfallBuffer  outBuffer_;
@@ -148,7 +148,7 @@ public:
 	WaterfallBackend(int bins,
 				  int overlap,
 				  string origin,
-				  int bufferSize,
+				  float snapshotLength,
 				  float leftFrequency,
 				  float rightFrequency);
 	virtual ~WaterfallBackend();

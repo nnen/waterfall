@@ -26,13 +26,20 @@ struct Complex {
 };
 
 
+/**
+ * \brief Basic metadata for a sample stream.
+ */
 struct StreamInfo {
+	/// Flag signalling whether the total length (number of samples) of the stream is known.
 	bool   knownLength;
+	/// Length (number of samples) of the stream if it is known, 0 otherwise.
 	int    length;
+	/// Stream sample rate in samples per second (Hz).
 	int    sampleRate;
 	
+	/// Time offset of the first sample in the stream.
 	WFTime timeOffset;
-
+	
 	StreamInfo()
 	{
 		knownLength = false;
@@ -44,9 +51,14 @@ struct StreamInfo {
 };
 
 
+/**
+ * \brief Basic metadata for a sample batch (finite number of samples provided at a time).
+ */
 struct DataInfo {
+	/// Position of the first sample of the batch from the beginning of the stream.
 	long   offset;
 	
+	/// Time offset of the first sample of the batch relative to the stream time offset.
 	WFTime timeOffset;
 	
 	DataInfo()

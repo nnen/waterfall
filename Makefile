@@ -14,7 +14,7 @@ OBJECT_FILES = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.o,$(CPP_FILE
 DEP_FILES    = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.d,$(CPP_FILE)))
 
 UNAME       := $(shell uname)
-CXXFLAGS     = -g -Wall -Icppapp
+CXXFLAGS     = -g -O0 -Wall -Icppapp
 LDFLAGS      = -Lcppapp -lcppapp -lfftw3 -lcfitsio
 ifeq ($(UNAME),Darwin)
 	LDFLAGS += -framework jackmp
