@@ -294,5 +294,169 @@ public:
 };
 
 
+template<class T>
+class FragmentedRingBuffer2D {
+public:
+	typedef T  ValueType;
+	typedef T* Ptr;
+
+private:
+	int width_;          //< Width of a row in number of elements.
+	int minCapacity_;    //< Desired (minimal) capacity of the buffer in number of rows.
+	int chunkSizeLimit_; //< Maximal desired chunk size in bytes.
+	
+	int  capacity_;      //< Actual capacity of the buffer in number of rows.
+	int  chunkElements_; //< Actual chunk size in number of elements (row width * row count).
+	int  chunkRows_;     //< Actual chunk size in number of rows.
+	int  chunkCount_;    //< Actual number of chunks.
+	Ptr *chunks_;        //< Array of chunks.
+	
+	struct ChunkItem {
+		Ptr *chunk;
+		Ptr  item;
+
+		ChunkItem() :
+			chunk(NULL), item(NULL)
+		{ }
+
+		ChunkItem(Ptr *chunk, Ptr item) :
+			chunk(chunk), item(item)
+		{ }
+	};
+	
+	ChunkItem head_;
+	ChunkItem tail_;
+	int       size_;
+	
+	inline ChunkItem advance(const ChunkItem item) const
+	{
+		ChunkItem result = item;
+		
+		result.item += width_;
+		
+		if (result.item >= (*result.chunk + chunkElements_)) {
+			result.chunk++;
+			if (result.chunk >= (chunks_ + chunkCount_))
+				result.chunk = chunks_;
+			result.item = *result.chunk;
+		}
+		
+		return result;
+	}
+	
+	inline void dispose()
+	{
+		if ((chunkCount_ < 1) || (chunks_ == NULL)) return; 
+		
+		for (Ptr *chunk = chunks_; chunk < (chunks_ + chunkCount_); chunk++) {
+			delete [] chunk;
+			chunk = NULL;
+		}
+		
+		delete [] chunks_;
+		chunks_ = NULL;
+		
+		chunkCount_ = 0;
+		capacity_ = 0;
+		size_ = 0;
+		head_ = NULL;
+		tail_ = NULL;
+	}
+
+public:
+	FragmentedRingBuffer2D(int width, int chunkSize) :
+		width_(width), minCapacity_(0), chunkSizeLimit_(chunkSize),
+		capacity_(0), chunkElements_(0), chunkRows_(0), chunkCount_(0), chunks_(NULL),
+		head_(), tail_(), size_(0)
+	{
+		int rowSize = sizeof(T) * width_;
+		chunkRows_ = chunkSizeLimit_ / rowSize;
+		if ((chunkSizeLimit_ % rowSize) != 0) chunkRows_++;
+		
+		chunkElements_ = chunkRows_ * width;
+	}
+	
+	FragmentedRingBuffer2D(int width, int chunkSize, int capacity) :
+		FragmentedRingBuffer2D(width, chunkSize)
+	{
+		resize(capacity);
+	}
+	
+	~FragmentedRingBuffer2D()
+	{
+		dispose();
+	}
+	
+	inline int getCapacity() const { return capacity_; }
+	inline int getSize() const { return size_; }
+	inline bool isEmpty() const { return (size_ == 0); }
+	inline bool isFull() const
+	{
+		return (size_ >= capacity_);
+		
+		//if (head_.item < (*head_.chunk + chunkSize_ - 1)) {
+		//	return ((head_.item + 1) == tail_.item);
+		//} else {
+		//	Ptr *nextChunk = chunks_ + (((head_.chunk + 1) - chunks_) % chunkCount_);
+		//	return ((nextChunk == tail_.chunk) && (tail_.item == *tail_.chunk));
+		//}
+	}
+	
+	void resize(int capacity)
+	{
+		dispose();
+		
+		// Calculate capacities/sizes
+		minCapacity_ = capacity;
+		
+		chunkCount_ = minCapacity_ / chunkRows_;
+		if ((minCapacity_ % chunkRows_) > 0) chunkCount_ += 1;
+		
+		capacity_ = chunkCount_ * chunkRows_;
+		
+		// Allocate memory
+		chunks_ = new Ptr[chunkCount_];
+		for (int i = 0; i < chunkCount_; i++) {
+			chunks_[i] = new T[chunkElements_];
+		}
+		
+		// Reset buffer to zero size
+		head_ = ChunkItem(chunks_, chunks_[0]);
+		tail_ = head_;
+		size_ = 0;
+	}
+	
+	bool tryPop(Ptr *row)
+	{
+		// Return if the buffer is empty.
+		if (isEmpty()) return false;
+		
+		// Get the popped item.
+		if (row != NULL)
+			*row = tail_.item;
+		
+		// Move the tail of the buffer.
+		tail_ = advance(tail_);
+		
+		// Update size
+		size_--;
+		assert(size_ >= 0);
+		
+		return true;
+	}
+	
+	Ptr push()
+	{
+		if (isFull()) tryPop(NULL);
+		
+		Ptr result = head_.item;
+		head_ = advance(head_);
+		
+		size_++;
+		assert(size_ <= capacity_);
+	}
+};
+
+
 #endif /* end of include guard: RINGBUFFER_HSQMLSDG */
 

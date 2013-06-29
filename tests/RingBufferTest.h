@@ -23,13 +23,13 @@ public:
 	/**
 	 * Constructor.
 	 */
-	RingBufferTest(const char *name) : TestCase(name)
-	{
-		TEST_ADD(RingBufferTest, testConstructor);
-		TEST_ADD(RingBufferTest, testCopyConstructor);
-		TEST_ADD(RingBufferTest, testCopyConstructorOverlap);
-		TEST_ADD(RingBufferTest, testPush);
-	}
+	//RingBufferTest(const char *name) : TestCase(name)
+	//{
+	//	TEST_ADD(RingBufferTest, testConstructor);
+	//	TEST_ADD(RingBufferTest, testCopyConstructor);
+	//	TEST_ADD(RingBufferTest, testCopyConstructorOverlap);
+	//	TEST_ADD(RingBufferTest, testPush);
+	//}
 	
 	void testConstructor()
 	{
@@ -172,7 +172,11 @@ RUN_SUITE(RingBufferTest);
 
 class FragmentedBufferTest : public TestCase {
 public:
-	FragmentedBufferTest(const char *name) : TestCase(name)
+	//FragmentedBufferTest(const char *name) : TestCase(name)
+	//{
+	//}
+	
+	virtual void initTests()
 	{
 		TEST_ADD(FragmentedBufferTest, testConstructor);
 		TEST_ADD(FragmentedBufferTest, testPush);
@@ -210,17 +214,32 @@ public:
 		for (int i = 0; i < itemCount; i++) {
 			buffer.push(i);
 			
-			TEST_EQUALS((i >= capacity - 1 ? capacity - 1 : i + 1), buffer.getSize(), "buffer has the wrong size");
+			TEST_EQUALS((i >= capacity - 1 ? capacity - 1 : i + 1),
+					  buffer.getSize(),
+					  "buffer has the wrong size");
 			TEST_EQUALS(i, buffer.at(-1), "buffer has the wrong content");
+			
+			for (int j = 0; j < buffer.getSize(); j++) {
+				TEST_EQUALS(i - j, buffer.at(-1 - j),
+						  "buffer has the wrong content");
+			}
 		}
 	}
 	
 	void testPush()
 	{
-		testPush(1024, 1024);
-		testPush(1024, 256);
-		testPush(1024, 200);
-		testPush(1024, 2048);
+		int capacity = 256;
+		
+		// capacity == chunk size
+		testPush(capacity, capacity);
+		// capacity == n * chunk size
+		testPush(capacity, capacity / 4);
+		// capacity > chunk size
+		testPush(capacity, 100);
+		// n * capacity == chunk size
+		testPush(capacity, capacity * 2);
+		// capacity < chunk size
+		testPush(capacity, 300);
 	}
 };
 
