@@ -197,8 +197,6 @@ void WaterfallBackend::startSnapshot()
 
 void WaterfallBackend::processFFT(const fftw_complex *data, int size, DataInfo info)
 {
-	//float *row = buffer_[bufferMark_];
-	//float *row = inBuffer_.getRow(bufferMark_);
 	float *row = inBuffer_.addRow(info.timeOffset);
 	
 	int halfSize = size / 2;
@@ -221,12 +219,6 @@ void WaterfallBackend::processFFT(const fftw_complex *data, int size, DataInfo i
 	//	);
 	//}
 	
-	//timeBuffer_[bufferMark_] = info.timeOffset;
-	//inBuffer_.times[bufferMark_] = info.timeOffset;
-	
-	//if (++bufferMark_ >= bufferSize_) {
-		//makeSnapshot();
-		//bufferMark_ = 0;
 	if (inBuffer_.isFull()) {
 		startSnapshot();
 	}
