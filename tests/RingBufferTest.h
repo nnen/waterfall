@@ -246,5 +246,76 @@ public:
 RUN_SUITE(FragmentedBufferTest);
 
 
+class FragmentedRingBuffer2DTest : public TestCase {
+public:
+	FragmentedRingBuffer2DTest()
+	{
+		TEST_ADD(FragmentedRingBuffer2DTest, testConstructor1);
+		TEST_ADD(FragmentedRingBuffer2DTest, testConstructor2);
+		TEST_ADD(FragmentedRingBuffer2DTest, testPush);
+	}
+	
+	void testConstructor(int width, int chunkSize)
+	{
+		FragmentedRingBuffer2D<int> buffer(width, chunkSize);
+		TEST_EQUALS(0, buffer.getCapacity(),
+				  "created buffer has wrong capacity");
+		TEST_EQUALS(0, buffer.getSize(), "created buffer should have 0 size");
+		TEST_ASSERT(buffer.isEmpty(), "created buffer should be empty");
+		TEST_ASSERT(!buffer.isFull(), "created buffer should not be full");
+	}
+	
+	void testConstructor(int width, int chunkSize, int capacity)
+	{
+		FragmentedRingBuffer2D<int> buffer(width, chunkSize, capacity);
+		TEST_ASSERT(buffer.getCapacity() >= capacity,
+				  "created buffer has wrong capacity");
+		TEST_EQUALS(0, buffer.getSize(), "created buffer should have 0 size");
+		TEST_ASSERT(buffer.isEmpty(), "created buffer should be empty");
+		TEST_ASSERT(!buffer.isFull(), "created buffer should not be full");
+	}
+	
+	void testConstructor1()
+	{
+		testConstructor(16, sizeof(int) * 16 * 8);
+		testConstructor(16, sizeof(int) * 16 * 8 - sizeof(int));
+	}
+	
+	void testConstructor2()
+	{
+		testConstructor(16, sizeof(int) * 16 * 8, 16 * 8 * 8);
+		testConstructor(16, sizeof(int) * 16 * 8 - sizeof(int), 16 * 8 * 8);
+	}
+	
+	void testPush(int width, int chunkSize, int capacity)
+	{
+		FragmentedRingBuffer2D<int> buffer(width, chunkSize, capacity);
+		
+		for (int i = 0; i < (capacity * 3); i++) {
+			int *ptr = buffer.push();
+			for (int j = 0; j < width; j++) {
+				ptr[j] = i;
+			}
+			
+			if ((i + 1) > buffer.getCapacity()) {
+				TEST_EQUALS(buffer.getCapacity(), buffer.getSize(),
+						  "buffer size should be the same as capacity");
+			} else {
+				TEST_EQUALS((i + 1), buffer.getSize(),
+						  "buffer size should increase after push");
+			}
+		}
+	}
+	
+	void testPush()
+	{
+		testPush(16, sizeof(int) * 16 * 8, 16 * 8 * 8);
+		testPush(16, sizeof(int) * 16 * 8 - 1, 16 * 8 * 8);
+	}
+};
+
+RUN_SUITE(FragmentedRingBuffer2DTest);
+
+
 #endif /* end of include guard: RINGBUFFERTEST_TEKSJAT1 */
 

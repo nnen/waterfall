@@ -10,6 +10,8 @@
 #include <cppapp/cppapp.h>
 using namespace cppapp;
 
+#include "RingBufferTest.h"
+
 
 //class App : public AppBase {
 //protected:

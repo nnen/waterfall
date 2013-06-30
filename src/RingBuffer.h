@@ -299,7 +299,7 @@ class FragmentedRingBuffer2D {
 public:
 	typedef T  ValueType;
 	typedef T* Ptr;
-
+	
 private:
 	int width_;          //< Width of a row in number of elements.
 	int minCapacity_;    //< Desired (minimal) capacity of the buffer in number of rows.
@@ -314,11 +314,11 @@ private:
 	struct ChunkItem {
 		Ptr *chunk;
 		Ptr  item;
-
+		
 		ChunkItem() :
 			chunk(NULL), item(NULL)
 		{ }
-
+		
 		ChunkItem(Ptr *chunk, Ptr item) :
 			chunk(chunk), item(item)
 		{ }
@@ -349,8 +349,8 @@ private:
 		if ((chunkCount_ < 1) || (chunks_ == NULL)) return; 
 		
 		for (Ptr *chunk = chunks_; chunk < (chunks_ + chunkCount_); chunk++) {
-			delete [] chunk;
-			chunk = NULL;
+			delete [] *chunk;
+			*chunk = NULL;
 		}
 		
 		delete [] chunks_;
@@ -359,8 +359,8 @@ private:
 		chunkCount_ = 0;
 		capacity_ = 0;
 		size_ = 0;
-		head_ = NULL;
-		tail_ = NULL;
+		head_ = ChunkItem();
+		tail_ = ChunkItem();
 	}
 
 public:
@@ -377,8 +377,16 @@ public:
 	}
 	
 	FragmentedRingBuffer2D(int width, int chunkSize, int capacity) :
-		FragmentedRingBuffer2D(width, chunkSize)
+		width_(width), minCapacity_(0), chunkSizeLimit_(chunkSize),
+		capacity_(0), chunkElements_(0), chunkRows_(0), chunkCount_(0), chunks_(NULL),
+		head_(), tail_(), size_(0)
 	{
+		int rowSize = sizeof(T) * width_;
+		chunkRows_ = chunkSizeLimit_ / rowSize;
+		if ((chunkSizeLimit_ % rowSize) != 0) chunkRows_++;
+		
+		chunkElements_ = chunkRows_ * width;
+		
 		resize(capacity);
 	}
 	
@@ -388,11 +396,11 @@ public:
 	}
 	
 	inline int getCapacity() const { return capacity_; }
-	inline int getSize() const { return size_; }
-	inline bool isEmpty() const { return (size_ == 0); }
+	inline int getSize()     const { return size_; }
+	inline bool isEmpty()    const { return (size_ == 0); }
 	inline bool isFull() const
 	{
-		return (size_ >= capacity_);
+		return ((size_ >= capacity_) && (capacity_ > 0));
 		
 		//if (head_.item < (*head_.chunk + chunkSize_ - 1)) {
 		//	return ((head_.item + 1) == tail_.item);
@@ -454,6 +462,25 @@ public:
 		
 		size_++;
 		assert(size_ <= capacity_);
+
+		return result;
+	}
+	
+	Ptr at(int rowIndex)
+	{
+		int physicalIndex = (
+			(tail_.chunk - chunks_) * chunkRows_ +
+			(tail_.item - *tail_.chunk) +
+			rowIndex
+		) % capacity_;
+		
+		int chunkIndex = physicalIndex / chunkRows_;
+		int itemIndex = physicalIndex % chunkRows_;
+		
+		assert(chunkIndex < chunkCount_);
+		assert(itemIndex < chunkRows_);
+		
+		return chunks_[chunkIndex] + itemIndex;
 	}
 };
 
