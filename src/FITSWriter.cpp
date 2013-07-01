@@ -9,24 +9,26 @@
 #include "FITSWriter.h"
 
 
-#define CHECK_STATUS(errorMsg) if (status_) { \
-	LOG_ERROR(errorMsg << " (status: " << status_ << ")"); }
+#define CHECK_STATUS(errorMsg) { \
+	if (status_ && (lastStatus_ != status_)) { \
+		LOG_ERROR(errorMsg << " (status: " << status_ << ")"); } \
+	lastStatus_ = status_; \
+}
 
 
 FITSWriter::FITSWriter() :
-	file_(NULL), status_(0)
-{
-	
-}
+	file_(NULL), status_(0), lastStatus_(0)
+{ }
 
 
 FITSWriter::~FITSWriter()
-{
-}
+{ }
 
 
-void FITSWriter::open()
+void FITSWriter::open(string fileName)
 {
+	fileName_ = fileName;
+
 	fits_create_file(&file_, fileName_.c_str(), &status_);
 	CHECK_STATUS("Failed to open FITS file \"" << fileName_ << "\".");
 }
@@ -37,14 +39,17 @@ void FITSWriter::close()
 	fits_close_file(file_, &status_);
 	CHECK_STATUS("Failed to close FITS file \"" << fileName_ << "\".");
 	
-	file_   = NULL;
-	status_ = 0;
+	file_       = NULL;
+	status_     = 0;
+	lastStatus_ = 0;
 }
 
 
-void FITSWriter::createImage()
+void FITSWriter::createImage(long width, long height, int type)
 {
-	
+	long dimensions[2] = { width, height };
+	fits_create_img(file_, type, 2, dimensions, &status_);
+	CHECK_STATUS("Failed to create primary HDU in FITS file.");
 }
 
 
@@ -83,4 +88,19 @@ void FITSWriter::writeHeader(const char *keyword,
 {
 	writeHeader(keyword, TINT, (void*)&value, comment);
 }
+
+
+void FITSWriter::comment(const char *value)
+{
+	fits_write_comment(file_, value, &status_);
+	CHECK_STATUS("Failed to write FITS header comment (\"" << value << "\").");
+}
+
+
+void FITSWriter::date()
+{
+	fits_write_date(file_, &status_);
+	CHECK_STATUS("Failed to write FITS DATE header.");
+}
+
 
