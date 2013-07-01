@@ -4,6 +4,7 @@
 
 
 BIN_NAME     = waterfall
+VERSION      = 0.1
 # yes / no
 IS_LIBRARY   = no
 
@@ -12,6 +13,8 @@ CPP_FILES    = $(shell ls $(SRC_DIR)/*.cpp)
 H_FILES      = $(shell ls $(SRC_DIR)/*.h)
 OBJECT_FILES = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.o,$(CPP_FILE)))
 DEP_FILES    = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.d,$(CPP_FILE)))
+
+DOCS_ARCH    = $(BIN_NAME)-$(VERSION)-docs.html.tar.gz
 
 UNAME       := $(shell uname)
 CXXFLAGS     = -g -O0 -Wall -Icppapp
@@ -33,7 +36,7 @@ build: $(BIN_NAME)
 
 
 clean:
-	@echo "========= CLEANING ========="
+	@echo "========= CLEANING =================================================="
 	rm -f $(OBJECT_FILES) $(BIN_NAME)
 	@echo
 
@@ -50,18 +53,35 @@ clean-deps:
 	rm -f $(DEP_FILES)
 
 
+docs:
+	@echo "========= GENERATING DOCS ==========================================="
+	doxygen
+	cd docs/html; tar -czf ../../$(DOCS_ARCH) ./*
+
+
+clean-docs:
+	@echo "========= CLEANING DOCS ============================================="
+	rm -fR docs/html
+
+
+upload-docs:
+	@$(MAKE) docs
+	scp $(DOCS_ARCH) jan@milik.cz:public_html/waterfall
+	ssh -t jan@milik.cz "cd ~/public_html/waterfall/docs; tar -xzf ../$(DOCS_ARCH)"
+
+
 $(BIN_NAME): $(OBJECT_FILES)
 ifeq ($(IS_LIBRARY),yes)
-	@echo "========= LINKING LIBRARY $@ ========="
+	@echo "========= LINKING LIBRARY $@ ========================================"
 	$(AR) -r $@ $^
 else
-	@echo "========= LINKING EXECUTABLE $@ ========="
+	@echo "========= LINKING EXECUTABLE $@ ====================================="
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 endif
 	@echo
 
 
-.PHONY: all build clean rebuild deps clean-deps
+.PHONY: all build clean rebuild deps clean-deps docs clean-docs
 
 
 %.d: %.cpp $(H_FILES)
