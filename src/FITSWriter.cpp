@@ -9,46 +9,66 @@
 #include "FITSWriter.h"
 
 
+ostream& operator<<(ostream &output, const FITSStatus &status)
+{
+	output << status.value << " - " << status.getStatus();
+	return output;
+}
+
+
 #define CHECK_STATUS(errorMsg) { \
-	if (status_ && (lastStatus_ != status_)) { \
+	if (status_.isError() && (lastStatus_.value != status_.value)) { \
 		LOG_ERROR(errorMsg << " (status: " << status_ << ")"); } \
 	lastStatus_ = status_; \
 }
 
 
 FITSWriter::FITSWriter() :
-	file_(NULL), status_(0), lastStatus_(0)
+	file_(NULL), status_(), lastStatus_(status_),
+	dimCount_(0), dimensions_(NULL)
 { }
 
 
 FITSWriter::~FITSWriter()
-{ }
+{
+	delete [] dimensions_;
+	dimCount_ = 0;
+	dimensions_ = NULL;
+}
 
 
 void FITSWriter::open(string fileName)
 {
 	fileName_ = fileName;
 
-	fits_create_file(&file_, fileName_.c_str(), &status_);
+	fits_create_file(&file_, fileName_.c_str(), status_);
 	CHECK_STATUS("Failed to open FITS file \"" << fileName_ << "\".");
 }
 
 
 void FITSWriter::close()
 {
-	fits_close_file(file_, &status_);
+	fits_close_file(file_, status_);
 	CHECK_STATUS("Failed to close FITS file \"" << fileName_ << "\".");
 	
 	file_       = NULL;
-	status_     = 0;
-	lastStatus_ = 0;
+	status_     = FITSStatus();
+	lastStatus_ = status_;
+	
+	dimCount_ = 0;
+	delete [] dimensions_;
+	dimensions_ = NULL;
 }
 
 
 void FITSWriter::createImage(long width, long height, int type)
 {
-	long dimensions[2] = { width, height };
-	fits_create_img(file_, type, 2, dimensions, &status_);
+	dimCount_ = 2;
+	dimensions_ = new long[2];
+	dimensions_[0] = width;
+	dimensions_[1] = height;
+	//long dimensions[2] = { width, height };
+	fits_create_img(file_, type, 2, dimensions_, status_);
 	CHECK_STATUS("Failed to create primary HDU in FITS file.");
 }
 
@@ -58,7 +78,7 @@ void FITSWriter::writeHeader(const char *keyword,
 					    void       *value,
 					    const char *comment)
 {
-	fits_write_key(file_, type, keyword, value, comment, &status_);
+	fits_write_key(file_, type, keyword, value, comment, status_);
 	CHECK_STATUS("Failed to write FITS header \"" << keyword << "\".");
 }
 
@@ -92,15 +112,29 @@ void FITSWriter::writeHeader(const char *keyword,
 
 void FITSWriter::comment(const char *value)
 {
-	fits_write_comment(file_, value, &status_);
+	fits_write_comment(file_, value, status_);
 	CHECK_STATUS("Failed to write FITS header comment (\"" << value << "\").");
 }
 
 
 void FITSWriter::date()
 {
-	fits_write_date(file_, &status_);
+	fits_write_date(file_, status_);
 	CHECK_STATUS("Failed to write FITS DATE header.");
+}
+
+
+void FITSWriter::write(long x, long y, long count, void *data, int type)
+{
+	long fpixel[2] = { x + 1, y + 1 };
+	fits_write_pix(file_, type, fpixel, count, data, status_);
+	CHECK_STATUS("Failed to write FITS pixel data.");
+}
+
+
+void FITSWriter::write(long y, long count, float *data)
+{
+	write(0, y, count * dimensions_[0], data, TFLOAT);
 }
 
 

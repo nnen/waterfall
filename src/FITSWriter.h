@@ -51,6 +51,9 @@ struct FITSStatus {
 };
 
 
+ostream& operator<<(ostream &output, const FITSStatus &status);
+
+
 /**
  * \brief Thin wrapper around some of FITSIO's FITS file writing functions.
  *
@@ -60,11 +63,14 @@ struct FITSStatus {
  */
 class FITSWriter {
 private:
-	string    fileName_;
+	string      fileName_;
 	
-	fitsfile *file_;
-	int       status_;
-	int       lastStatus_;
+	fitsfile   *file_;
+	FITSStatus  status_;
+	FITSStatus  lastStatus_;
+	
+	int         dimCount_;
+	long       *dimensions_;
 	
 	FITSWriter(const FITSWriter& other);
 public:
@@ -83,7 +89,7 @@ public:
 	/**
 	 * \brief Returns the status code of the last CFITSIO call.
 	 */
-	int getStatus() const { return status_; }
+	FITSStatus getStatus() const { return status_; }
 	
 	/**
 	 * \brief Creates a new FITS file with specified file name.
@@ -114,6 +120,18 @@ public:
 	void comment(const char *value);
 	
 	void date();
+	
+	/**
+	 * \brief Write FITS pixel data to the current HDU.
+	 *
+	 * \param x     Position of the first pixel in \c data in the first dimension.
+	 * \param y     Position of the first pixel in \c data in the second dimension.
+	 * \param count Number of pixels to write.
+	 * \param data  Pointer to the data to write.
+	 * \param type  Domain data type of the data (for example, \c TFLOAT for \c float).
+	 */
+	void write(long x, long y, long count, void *data, int type);
+	void write(long y, long count, float *data);
 };
 
 
