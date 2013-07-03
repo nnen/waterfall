@@ -3,6 +3,12 @@ waterfall
 
 Radioastronomy utility. For more information, see [the MLAB wiki](http://wiki.mlab.cz/doku.php?id=en:programming_tasks#open-source_meteor_detection_toolkit).
 
+### Table of Contents
+* [Compilation](#compilation)
+* [Configuration](#configuration)
+* [Usage](#usage)
+* [ChangeLog](#changelog)
+
 
 Compilation
 -----------
@@ -63,4 +69,11 @@ two-digit month, `DD` two-digit day and so on.
 Despite there being a `log_file` configuration option, the log is currently
 written only to the stderr.  To append it to a file, do output redirection (`$
 waterfall 2> your_log_file.log`).
+
+
+ChangeLog
+---------
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 
