@@ -11,6 +11,7 @@
 
 
 #include "FFTBackend.h"
+#include "FITSWriter.h"
 
 #include <cmath>
 
@@ -19,12 +20,19 @@ using namespace std;
 #include <fitsio.h>
 
 
+////////////////////////////////////////////////////////////////////////////////
+// WATERFALL BUFFER
+////////////////////////////////////////////////////////////////////////////////
+
+
 struct WaterfallBuffer {
+	/// Number of rows of the buffer (height).
 	int            size;
+	/// Width of a row.
 	int            bins;
 	vector<float>  data;
 	vector<WFTime> times;
-
+	
 	int            mark;
 	
 	WaterfallBuffer() :
@@ -37,6 +45,17 @@ struct WaterfallBuffer {
 		resize(size, bins);
 	}
 	
+	/**
+	 * \brief Resize the buffer to the specified number of rows of specified
+	 *        width.
+	 *
+	 * Resizing the buffer also resets buffer's mark. This means that the
+	 * buffer is effectively erased and all data previously held by the buffer
+	 * is lost.
+	 *
+	 * \param size number of rows (height)
+	 * \param bins width of a row (width)
+	 */
 	void resize(int size, int bins)
 	{
 		assert(size >= 0);
@@ -49,6 +68,23 @@ struct WaterfallBuffer {
 		times.resize(size);
 		
 		rewind();
+	}
+	
+	/**
+	 * \brief Resize the buffer to fit within specified memory size.
+	 *
+	 * \param bins    width of a row
+	 * \param maxSize maximal memory size of the buffer
+	 * \returns       the resulting number of rows
+	 */
+	int autoResize(int bins, long maxSize)
+	{
+		int rows = maxSize / (bins * sizeof(float));
+		rows = (rows == 0) ? 1 : rows;
+		
+		resize(rows, bins);
+		
+		return rows;
 	}
 	
 	void rewind()
@@ -78,6 +114,14 @@ struct WaterfallBuffer {
 		return mark >= size;
 	}
 	
+	/**
+	 * \brief Returns number of remaining row in the buffer.
+	 */
+	inline int remaining() const
+	{
+		return (size - mark);
+	}
+	
 	void swap(WaterfallBuffer &other)
 	{
 		int mark = this->mark;
@@ -88,6 +132,47 @@ struct WaterfallBuffer {
 		times.swap(other.times);
 	}
 };
+
+
+////////////////////////////////////////////////////////////////////////////////
+// WATERFALL RECORDER
+////////////////////////////////////////////////////////////////////////////////
+
+
+class WaterfallRecorder : public Object {
+private:
+	typedef MethodThread<void, WaterfallRecorder> Thread;
+	
+	Thread          *workerThread_;
+	Mutex            mutex_;
+	Condition        condition_;
+	bool             exitWorkerThread_;
+	
+	WaterfallBuffer  inputBuffer_;
+	WaterfallBuffer  outputBuffer_;
+	
+	long             rowCount_;
+	long             currentRow_;
+	
+	FITSWriter       writer_;
+	
+	void* workerThreadMethod();
+
+public:
+	WaterfallRecorder();
+	virtual ~WaterfallRecorder();
+	
+	void   resize(int bins, long maxBufferSize);
+	
+	void   start();
+	void   stop();
+	float* addRow(WFTime time);
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
+// WATERFALL BACKEND
+////////////////////////////////////////////////////////////////////////////////
 
 
 /**

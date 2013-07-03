@@ -14,6 +14,83 @@
 using namespace std;
 
 
+////////////////////////////////////////////////////////////////////////////////
+// WATERFALL RECORDER
+////////////////////////////////////////////////////////////////////////////////
+
+
+void* WaterfallRecorder::workerThreadMethod()
+{
+	MutexLock lock(&mutex_);
+	
+	while (!exitWorkerThread_) {
+		condition_.wait(mutex_);
+		if (exitWorkerThread_) break;
+		// TODO: Process data, make create new files as necessary.
+	}
+	
+	return NULL;
+}
+
+
+void WaterfallRecorder::resize(int bins, long maxBufferSize)
+{
+	int rows = inputBuffer_.autoResize(bins, maxBufferSize);
+	outputBuffer_.resize(rows, bins);
+	
+	currentRow_ = 0;
+}
+
+
+void WaterfallRecorder::start()
+{
+	workerThread_ = new Thread(this, &WaterfallRecorder::workerThreadMethod);
+}
+
+
+void WaterfallRecorder::stop()
+{
+	// Lock the mutex, necessary for the condition variable.
+	MutexLock lock(&mutex_);
+	
+	// Signal the worker thread to exit the work loop.
+	exitWorkerThread_ = true;
+	condition_.signal();
+	
+	// Wait for the worker thread to stop and release the
+	// resources.
+	workerThread_->join();
+	delete workerThread_;
+	workerThread_ = NULL;
+}
+
+
+float* WaterfallRecorder::addRow(WFTime time)
+{
+	// If the input buffer is full, swap buffers
+	// and send signal to worker thread that the 
+	// output buffer is ready to be written to
+	// file.
+	if (inputBuffer_.isFull()) {
+		MutexLock lock(&mutex_);
+		
+		inputBuffer_.swap(outputBuffer_);
+		condition_.signal();
+		
+		inputBuffer_.rewind();
+	}
+	
+	// Add row to the input buffer and return
+	// pointer to it.
+	return inputBuffer_.addRow(time);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// WATERFALL BACKEND
+////////////////////////////////////////////////////////////////////////////////
+
+
 void WaterfallBackend::writeHeader(fitsfile   *file,
 							const char *keyword,
 							int         type,
