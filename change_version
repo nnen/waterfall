@@ -16,6 +16,7 @@ function change_file {
 	diff "${file_name}.bak" "${file_name}"
 }
 
+change_file README.md "s/\(version\s*\`\)[^\`]*/\1$MAJOR.${MINOR}${REVISION}/g"
 change_file Doxyfile "s/\(PROJECT_NUMBER\s*\=\s*\).*/\1$MAJOR.${MINOR}${REVISION}/g"
 change_file Makefile "s/\(VERSION\s*\=\s*\).*/\1$MAJOR.${MINOR}${REVISION}/g"
 change_file src/config.h "s/\(PACKAGE_VERSION\s*\)\"[^\"]*\"/\1\"$MAJOR.${MINOR}${REVISION}\"/g"
