@@ -156,7 +156,12 @@ void* WaterfallBackend::snapshotThread()
 
 void WaterfallBackend::makeSnapshot()
 {
-	WFTime time = outBuffer_.times[0];
+	// TODO: This is a hotfix, needs to be debugged and fixed later.
+	// Original code:
+	// WFTime time = outBuffer_.times[0];
+	// Hotfix:
+	WFTime time = WFTime::now(); // this is not exact as the input data stream
+	                             // and the writer thread are asynchronous
 	
 	char *fileName = new char[1024];
 	sprintf(fileName, "!snapshot_%s_%s.fits",
