@@ -280,20 +280,40 @@ void WaterfallBackend::startSnapshot()
 void WaterfallBackend::processFFT(const fftw_complex *data, int size, DataInfo info)
 {
 	float *row = inBuffer_.addRow(info.timeOffset);
+	int    halfSize = size / 2;
 	
-	int halfSize = size / 2;
+	// Left half (0 -- half)
 	for (int i = 0; i < halfSize; i++) {
-		row[halfSize - i - 1] = sqrt(
+		row[halfSize + i] = sqrt(
 			data[i][0] * data[i][0] +
 			data[i][1] * data[i][1]
 		);
 	}
+	
+	// Right half (half -- size)
 	for (int i = halfSize; i < size; i++) {
-		row[size - (i - halfSize) - 1] = sqrt(
+		row[i - halfSize] = sqrt(
 			data[i][0] * data[i][0] +
 			data[i][1] * data[i][1]
 		);
 	}
+	
+	//// Left half (0 -- half)
+	//for (int i = 0; i < halfSize; i++) {
+	//	row[halfSize - i - 1] = sqrt(
+	//		data[i][0] * data[i][0] +
+	//		data[i][1] * data[i][1]
+	//	);
+	//}
+	//
+	//// Right half (half -- size)
+	//for (int i = halfSize; i < size; i++) {
+	//	row[size - (i - halfSize) - 1] = sqrt(
+	//		data[i][0] * data[i][0] +
+	//		data[i][1] * data[i][1]
+	//	);
+	//}
+	
 	//for (int i = 0; i < size; i++) {
 	//	row[i] = sqrt(
 	//		data[i][0] * data[i][0] +
