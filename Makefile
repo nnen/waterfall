@@ -4,7 +4,7 @@
 
 
 BIN_NAME     = waterfall
-VERSION      = 0.1.1
+VERSION      = 0.1.2
 # yes / no
 IS_LIBRARY   = no
 
