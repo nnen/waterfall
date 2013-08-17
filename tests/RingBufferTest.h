@@ -23,13 +23,13 @@ public:
 	/**
 	 * Constructor.
 	 */
-	//RingBufferTest(const char *name) : TestCase(name)
-	//{
-	//	TEST_ADD(RingBufferTest, testConstructor);
-	//	TEST_ADD(RingBufferTest, testCopyConstructor);
-	//	TEST_ADD(RingBufferTest, testCopyConstructorOverlap);
-	//	TEST_ADD(RingBufferTest, testPush);
-	//}
+	RingBufferTest()
+	{
+		TEST_ADD(RingBufferTest, testConstructor);
+		TEST_ADD(RingBufferTest, testCopyConstructor);
+		TEST_ADD(RingBufferTest, testCopyConstructorOverlap);
+		TEST_ADD(RingBufferTest, testPush);
+	}
 	
 	void testConstructor()
 	{
@@ -170,94 +170,30 @@ public:
 RUN_SUITE(RingBufferTest);
 
 
-class FragmentedBufferTest : public TestCase {
+class RingBuffer2DTest : public TestCase {
 public:
-	//FragmentedBufferTest(const char *name) : TestCase(name)
-	//{
-	//}
-	
-	virtual void initTests()
+	RingBuffer2DTest()
 	{
-		TEST_ADD(FragmentedBufferTest, testConstructor);
-		TEST_ADD(FragmentedBufferTest, testPush);
+		TEST_ADD(RingBuffer2DTest, testConstructor1);
+		TEST_ADD(RingBuffer2DTest, testConstructor2);
+		TEST_ADD(RingBuffer2DTest, testPush);
+		TEST_ADD(RingBuffer2DTest, testMark);
+		TEST_ADD(RingBuffer2DTest, testReservations);
 	}
 	
-	void testConstructor(int capacity, int chunkSize)
+	template<class T>
+	T* fillRow(RingBuffer2D<T> *buffer, T value)
 	{
-		FragmentedRingBuffer<int> buffer(capacity, chunkSize);
-		TEST_ASSERT(buffer.getCapacity() >= capacity,
-				  "created buffer has wrong capacity");
-		TEST_EQUALS(0, buffer.getSize(), "created buffer has wrong size");
-		TEST_ASSERT(buffer.isEmpty(), "created buffer should be empty");
-		TEST_ASSERT(!buffer.isFull(), "created buffer should not be full");
-	}
-	
-	void testConstructor()
-	{
-		// Capacity == Chunk Size
-		testConstructor(1024, 1024);
-		// Capacity == n * Chunk Size
-		testConstructor(1024, 256);
-		// Capacity > Chunk Size
-		testConstructor(1024, 200);
-		// Capacity < Chunk Size
-		testConstructor(1024, 2048);
-	}
-
-	void testPush(int capacity, int chunkSize)
-	{
-		FragmentedRingBuffer<int> buffer(capacity, chunkSize);
-		capacity = buffer.getCapacity();
-		
-		int itemCount = buffer.getCapacity() * 7 / 3;
-		
-		for (int i = 0; i < itemCount; i++) {
-			buffer.push(i);
-			
-			TEST_EQUALS((i >= capacity - 1 ? capacity - 1 : i + 1),
-					  buffer.getSize(),
-					  "buffer has the wrong size");
-			TEST_EQUALS(i, buffer.at(-1), "buffer has the wrong content");
-			
-			for (int j = 0; j < buffer.getSize(); j++) {
-				TEST_EQUALS(i - j, buffer.at(-1 - j),
-						  "buffer has the wrong content");
-			}
+		T* row = buffer->push();
+		for (int i = 0; i < buffer->getWidth(); i++) {
+			row[i] = value;
 		}
-	}
-	
-	void testPush()
-	{
-		int capacity = 256;
-		
-		// capacity == chunk size
-		testPush(capacity, capacity);
-		// capacity == n * chunk size
-		testPush(capacity, capacity / 4);
-		// capacity > chunk size
-		testPush(capacity, 100);
-		// n * capacity == chunk size
-		testPush(capacity, capacity * 2);
-		// capacity < chunk size
-		testPush(capacity, 300);
-	}
-};
-
-RUN_SUITE(FragmentedBufferTest);
-
-
-class FragmentedRingBuffer2DTest : public TestCase {
-public:
-	FragmentedRingBuffer2DTest()
-	{
-		TEST_ADD(FragmentedRingBuffer2DTest, testConstructor1);
-		TEST_ADD(FragmentedRingBuffer2DTest, testConstructor2);
-		TEST_ADD(FragmentedRingBuffer2DTest, testPush);
+		return row;
 	}
 	
 	void testConstructor(int width, int chunkSize)
 	{
-		FragmentedRingBuffer2D<int> buffer(width, chunkSize);
+		RingBuffer2D<int> buffer(width, chunkSize);
 		TEST_EQUALS(0, buffer.getCapacity(),
 				  "created buffer has wrong capacity");
 		TEST_EQUALS(0, buffer.getSize(), "created buffer should have 0 size");
@@ -267,7 +203,7 @@ public:
 	
 	void testConstructor(int width, int chunkSize, int capacity)
 	{
-		FragmentedRingBuffer2D<int> buffer(width, chunkSize, capacity);
+		RingBuffer2D<int> buffer(width, chunkSize, capacity);
 		TEST_ASSERT(buffer.getCapacity() >= capacity,
 				  "created buffer has wrong capacity");
 		TEST_EQUALS(0, buffer.getSize(), "created buffer should have 0 size");
@@ -289,7 +225,7 @@ public:
 	
 	void testPush(int width, int chunkSize, int capacity)
 	{
-		FragmentedRingBuffer2D<int> buffer(width, chunkSize, capacity);
+		RingBuffer2D<int> buffer(width, chunkSize, capacity);
 		
 		for (int i = 0; i < (capacity * 3); i++) {
 			int *ptr = buffer.push();
@@ -312,9 +248,62 @@ public:
 		testPush(16, sizeof(int) * 16 * 8, 16 * 8 * 8);
 		testPush(16, sizeof(int) * 16 * 8 - 1, 16 * 8 * 8);
 	}
+
+	void testMark(int width, int chunkSize, int capacity)
+	{
+		RingBuffer2D<int> buffer(width, chunkSize, capacity);
+		
+		for (int i = 0; i < (capacity * 3); i++) {
+			int *ptr = buffer.push();
+			for (int j = 0; j < width; j++) ptr[j] = i;
+			
+			TEST_EQUALS(buffer.mark(), ((i + 1) % buffer.getCapacity()),
+					  "mark() should return index of the next item to be inserted");
+		}
+	}
+	
+	void testMark()
+	{
+		testMark(16, sizeof(int) * 16 * 8, 16 * 8 * 8);
+		testMark(16, sizeof(int) * 16 * 8 - 1, 16 * 8 * 8);
+	}
+	
+	void testReservations(int width, int chunkSize, int capacity)
+	{
+		RingBuffer2D<int> buffer(width, chunkSize, capacity);
+		int size = 10;
+		
+		int mark = buffer.mark();
+		
+		//TEST_EQUALS(buffer.size(mark), 0, "");
+		
+		for (int i = 0; i < size; i++) {
+			fillRow(&buffer, i);
+		}
+		
+		TEST_EQUALS(buffer.size(mark), 10, "");
+		
+		int handle = buffer.reserve(mark, size / 2);
+		TEST_ASSERT(!buffer.isDirty(handle), "");
+		
+		for (int i = 0; i < capacity; i++) {
+			fillRow(&buffer, i);
+		}
+		
+		TEST_ASSERT(buffer.isDirty(handle), "");
+	}
+	
+	void testReservations()
+	{
+		testReservations(16, sizeof(int) * 16 * 8, 16 * 8 * 8);
+		testReservations(16, sizeof(int) * 16 * 8 - 1, 16 * 8 * 8);
+
+		testReservations(16, sizeof(int) * 16 * 8, 16 * 8 * 31);
+		testReservations(16, sizeof(int) * 16 * 8 - 1, 16 * 8 * 31);
+	}
 };
 
-RUN_SUITE(FragmentedRingBuffer2DTest);
+RUN_SUITE(RingBuffer2DTest);
 
 
 #endif /* end of include guard: RINGBUFFERTEST_TEKSJAT1 */

@@ -120,212 +120,42 @@ public:
 
 
 template<class T>
-class FragmentedRingBuffer {
-public:
-	typedef T  ValueType;
-	typedef T* Ptr;
-
+class RingBuffer2D {
 private:
-	int  capacity_;
+	typedef T                 value_type;
+	typedef value_type&       reference;
+	typedef const value_type& const_reference;
+	typedef value_type*       pointer;
+	typedef const value_type* const_pointer;
 	
-	int  chunkSize_;
-	int  chunkCount_;
-	Ptr *chunks_;
-	
-	struct ChunkItem {
-		Ptr *chunk;
-		Ptr  item;
-		
-		ChunkItem() : chunk(NULL), item(NULL) {}
-		ChunkItem(Ptr *chunk, Ptr item) : chunk(chunk), item(item) {}
-		
-		inline int getOffset() const
-		{
-			return (item - *chunk);
-		}
-		
-		inline ChunkItem advance(const FragmentedRingBuffer<T> &buffer)
-		{
-			ChunkItem result = *this;
-			
-			result.item++;
-			
-			if (result.item >= (*result.chunk + buffer.chunkSize_)) {
-				result.chunk++;
-				if (result.chunk >= (buffer.chunks_ + buffer.chunkCount_))
-					result.chunk = buffer.chunks_;
-				result.item = *result.chunk;
-			}
-			
-			return result;
-		}
-
-		inline const ChunkItem& operator=(const ChunkItem& other)
-		{
-			chunk = other.chunk;
-			item = other.item;
-			return other;
-		}
-		
-		//inline bool operator==(const ChunkItem &other) { return item == other.item; }
-	};
-	
-	ChunkItem head_;
-	ChunkItem tail_;
-	int size_;
-	
-public:
-	FragmentedRingBuffer(int capacity, int chunkSize) :
-		capacity_(capacity),
-		chunkSize_(chunkSize), chunkCount_(0), chunks_(NULL),
-		head_(), tail_(), size_(0)
-	{
-		chunkCount_ = capacity_ / chunkSize_;
-		if ((capacity % chunkSize_) > 0) chunkCount_ += 1;
-		capacity_ = chunkCount_ * chunkSize_;
-		
-		chunks_ = new Ptr[chunkCount_];
-		
-		for (int i = 0; i < chunkCount_; i++) {
-			chunks_[i] = new T[chunkSize_];
-		}
-		
-		head_ = ChunkItem(chunks_, chunks_[0]);
-		tail_ = head_;
-		
-		assert(head_.chunk == chunks_);
-		assert(head_.item == chunks_[0]);
-	}
-	
-	FragmentedRingBuffer(const FragmentedRingBuffer<T>& other) :
-		capacity_(other.capacity_),
-		chunkSize_(other.chunkSize_), chunkCount_(other.chunkCount_), chunks_(NULL),
-		head_(), tail_(), size_(other.size_)
-	{
-		chunks_ = new Ptr[chunkCount_];
-		
-		for (int i = 0; i < chunkCount_; i++) {
-			chunks_[0] = new T[chunkSize_];
-		}
-	}
-	
-	~FragmentedRingBuffer()
-	{
-		for (int i = 0; i < chunkCount_; i++) {
-			delete [] chunks_[i];
-			chunks_[i] = NULL;
-		}
-		
-		delete [] chunks_;
-		chunks_ = NULL;
-	}
-	
-	inline int  getCapacity() const { return capacity_; }
-	inline int  getSize() const { return size_; }
-	inline bool isEmpty() const { return (size_ == 0); }
-	inline bool isFull() const
-	{
-		if (head_.item < (*head_.chunk + chunkSize_ - 1)) {
-			return ((head_.item + 1) == (tail_.item));
-		} else {
-			Ptr *nextChunk = chunks_ + (((head_.chunk + 1) - chunks_) % chunkCount_);
-			return ((nextChunk == tail_.chunk) && (tail_.item == *tail_.chunk));
-		}
-	}
-	
-	bool tryPop(T *item)
-	{
-		// Return if the buffer is empty.
-		if (isEmpty()) return false;
-		
-		// Get the popped item.
-		if (item != NULL)
-			*item = *tail_.item;
-		
-		// Move the tail of the buffer.
-		tail_ = tail_.advance(*this);
-		//tail_.item++;
-		//if (tail_.item >= *tail_.chunk + chunkSize_) {
-		//	tail_.chunk++;
-		//	if (tail_.chunk >= chunks_ + chunkCount_)
-		//		tail_.chunk = chunks_;
-		//	tail_.item = *tail_.chunk;
-		//}
-		
-		size_--;
-		assert(size_ >= 0);
-		
-		return true;
-	}
-	
-	void push(const T &item)
-	{
-		if (isFull()) tryPop(NULL);
-		
-		// Copy the pushed item.
-		*head_.item = item;
-		
-		// Move the head fo the buffer.
-		head_ = head_.advance(*this);
-		//head_.item++;
-		//if (head_.item >= *head_.chunk + chunkSize_) {
-		//	head_.chunk++;
-		//}
-		//
-		//if (head_ >= buffer_ + capacity_)
-		//	head_ = buffer_;
-		
-		size_++;
-		assert(size_ < capacity_);
-	}
-	
-	inline ValueType& at(int index)
-	{
-		while (index < 0)
-			index += getSize();
-		
-		int chunkOffset = tail_.getOffset() + index;
-		int chunkIndex = ((tail_.chunk - chunks_) +
-			(chunkOffset / chunkSize_)) % chunkCount_;
-		int itemIndex = chunkOffset % chunkSize_;
-		
-		return chunks_[chunkIndex][itemIndex];
-	}
-};
-
-
-template<class T>
-class FragmentedRingBuffer2D {
-public:
-	typedef T  ValueType;
-	typedef T* Ptr;
-	
-private:
 	int width_;          //< Width of a row in number of elements.
 	int minCapacity_;    //< Desired (minimal) capacity of the buffer in number of rows.
 	int chunkSizeLimit_; //< Maximal desired chunk size in bytes.
 	
-	int  capacity_;      //< Actual capacity of the buffer in number of rows.
-	int  chunkElements_; //< Actual chunk size in number of elements (row width * row count).
-	int  chunkRows_;     //< Actual chunk size in number of rows.
-	int  chunkCount_;    //< Actual number of chunks.
-	Ptr *chunks_;        //< Array of chunks.
+	int      capacity_;      //< Actual capacity of the buffer in number of rows.
+	int      chunkElements_; //< Actual chunk size in number of elements (row width * row count).
+	int      chunkRows_;     //< Actual chunk size in number of rows.
+	int      chunkCount_;    //< Actual number of chunks.
+	pointer *chunks_;        //< Array of pointers to chunks.
 	
 	struct ChunkItem {
-		Ptr *chunk;
-		Ptr  item;
+		pointer *chunk; //< Points to an item in RingBuffer2D::chunks_.
+		pointer  item;  //< Points to an item in the selected chunk.
 		
 		ChunkItem() :
 			chunk(NULL), item(NULL)
 		{ }
 		
-		ChunkItem(Ptr *chunk, Ptr item) :
+		ChunkItem(pointer *chunk, pointer item) :
 			chunk(chunk), item(item)
+		{ }
+
+		ChunkItem(pointer *chunk, int item) :
+			chunk(chunk), item(*chunk + item)
 		{ }
 	};
 	
 	ChunkItem head_;
-	ChunkItem tail_;
 	int       size_;
 	
 	inline ChunkItem advance(const ChunkItem item) const
@@ -348,7 +178,7 @@ private:
 	{
 		if ((chunkCount_ < 1) || (chunks_ == NULL)) return; 
 		
-		for (Ptr *chunk = chunks_; chunk < (chunks_ + chunkCount_); chunk++) {
+		for (pointer *chunk = chunks_; chunk < (chunks_ + chunkCount_); chunk++) {
 			delete [] *chunk;
 			*chunk = NULL;
 		}
@@ -360,14 +190,40 @@ private:
 		capacity_ = 0;
 		size_ = 0;
 		head_ = ChunkItem();
-		tail_ = ChunkItem();
+	}
+	
+	inline ChunkItem getItem(int rowIndex)
+	{
+		int chunkIndex = rowIndex / chunkRows_;
+		int itemIndex = (rowIndex % chunkRows_) * width_;
+		
+		return ChunkItem(chunks_ + chunkIndex, itemIndex);
+	}
+	
+	inline int getRowIndex(const ChunkItem &item)
+	{
+		int chunkIndex = item.chunk - chunks_;
+		int itemIndex = (item.item - *item.chunk) / width_;
+		
+		return (chunkIndex * chunkRows_) + itemIndex;
+	}
+
+	inline int normalizeRowIndex(int value)
+	{
+		while (value < 0) {
+			value += capacity_;
+		}
+		
+		value = value % capacity_;
+		
+		return value;
 	}
 
 public:
-	FragmentedRingBuffer2D(int width, int chunkSize) :
+	RingBuffer2D(int width, int chunkSize) :
 		width_(width), minCapacity_(0), chunkSizeLimit_(chunkSize),
 		capacity_(0), chunkElements_(0), chunkRows_(0), chunkCount_(0), chunks_(NULL),
-		head_(), tail_(), size_(0)
+		head_(), size_(0)
 	{
 		int rowSize = sizeof(T) * width_;
 		chunkRows_ = chunkSizeLimit_ / rowSize;
@@ -376,10 +232,10 @@ public:
 		chunkElements_ = chunkRows_ * width;
 	}
 	
-	FragmentedRingBuffer2D(int width, int chunkSize, int capacity) :
+	RingBuffer2D(int width, int chunkSize, int capacity) :
 		width_(width), minCapacity_(0), chunkSizeLimit_(chunkSize),
 		capacity_(0), chunkElements_(0), chunkRows_(0), chunkCount_(0), chunks_(NULL),
-		head_(), tail_(), size_(0)
+		head_(), size_(0)
 	{
 		int rowSize = sizeof(T) * width_;
 		chunkRows_ = chunkSizeLimit_ / rowSize;
@@ -390,24 +246,24 @@ public:
 		resize(capacity);
 	}
 	
-	~FragmentedRingBuffer2D()
+	~RingBuffer2D()
 	{
 		dispose();
 	}
 	
+	inline int getWidth()    const { return width_; }
 	inline int getCapacity() const { return capacity_; }
 	inline int getSize()     const { return size_; }
 	inline bool isEmpty()    const { return (size_ == 0); }
 	inline bool isFull() const
 	{
 		return ((size_ >= capacity_) && (capacity_ > 0));
-		
-		//if (head_.item < (*head_.chunk + chunkSize_ - 1)) {
-		//	return ((head_.item + 1) == tail_.item);
-		//} else {
-		//	Ptr *nextChunk = chunks_ + (((head_.chunk + 1) - chunks_) % chunkCount_);
-		//	return ((nextChunk == tail_.chunk) && (tail_.item == *tail_.chunk));
-		//}
+	}
+	
+	void clear()
+	{
+		head_ = ChunkItem(chunks_, chunks_[0]);
+		size_ = 0;
 	}
 	
 	void resize(int capacity)
@@ -423,64 +279,141 @@ public:
 		capacity_ = chunkCount_ * chunkRows_;
 		
 		// Allocate memory
-		chunks_ = new Ptr[chunkCount_];
+		chunks_ = new pointer[chunkCount_];
 		for (int i = 0; i < chunkCount_; i++) {
 			chunks_[i] = new T[chunkElements_];
 		}
 		
-		// Reset buffer to zero size
-		head_ = ChunkItem(chunks_, chunks_[0]);
-		tail_ = head_;
-		size_ = 0;
+		clear();
 	}
 	
-	bool tryPop(Ptr *row)
+	pointer push()
 	{
-		// Return if the buffer is empty.
-		if (isEmpty()) return false;
-		
-		// Get the popped item.
-		if (row != NULL)
-			*row = tail_.item;
-		
-		// Move the tail of the buffer.
-		tail_ = advance(tail_);
-		
-		// Update size
-		size_--;
-		assert(size_ >= 0);
-		
-		return true;
-	}
-	
-	Ptr push()
-	{
-		if (isFull()) tryPop(NULL);
-		
-		Ptr result = head_.item;
+		pointer result = head_.item;
 		head_ = advance(head_);
 		
-		size_++;
+		if (!isFull()) size_++;
 		assert(size_ <= capacity_);
-
+		
+		FOR_EACH(reservations_, it) {
+			if (it->alive && isInRange(mark(), it->start, it->end))
+				it->dirty = true;
+		}
+		
 		return result;
 	}
 	
-	Ptr at(int rowIndex)
+	int mark()
 	{
-		int physicalIndex = (
-			(tail_.chunk - chunks_) * chunkRows_ +
-			(tail_.item - *tail_.chunk) +
-			rowIndex
-		) % capacity_;
+		return getRowIndex(head_);
+	}
+	
+	//// RESERVATIONS //////////////////////////////////////////////
+private:
+	struct Reservation {
+		int start;
+		int end;
+
+		bool alive;
+		bool dirty;
+
+		Reservation() :
+			start(0), end(0), alive(false), dirty(false)
+		{}
 		
-		int chunkIndex = physicalIndex / chunkRows_;
-		int itemIndex = physicalIndex % chunkRows_;
+		void init(int start, int end) {
+			this->start = start;
+			this->end = 0;
+			this->alive = true;
+			this->dirty = false;
+		}
 		
-		assert(chunkIndex < chunkCount_);
-		assert(itemIndex < chunkRows_);
+		void free() {
+			alive = false;
+		}
+	};
+	
+	vector<Reservation> reservations_;
+	vector<int>         freeReservations_;
+	
+public:
+	/**
+	 * \brief Returns number of elements (rows) between \c start and \c end.
+	 */
+	int size(int start, int end) {
+		start = normalizeRowIndex(start);
+		end = normalizeRowIndex(end);
 		
-		return chunks_[chunkIndex] + itemIndex;
+		if (end > start)
+			return (end - start);
+		return (capacity_ - start) + end;
+	}
+	
+	/**
+	 * \brief Returns number of elements (rows) between \c start and head of the buffer.
+	 */
+	int size(int start) {
+		start = normalizeRowIndex(start);
+		
+		int headIndex = mark();
+		return size(start, headIndex);
+	}
+	
+	bool isInRange(int index, int start, int end) {
+		index = normalizeRowIndex(index);
+		start = normalizeRowIndex(start);
+		end = normalizeRowIndex(end);
+		
+		if (end > start)
+			return ((index >= start) && (index < end));
+		
+		return ((index >= start) || (index < end));
+	}
+	
+	/**
+	 * \brief Creates a reservation and returns a handle to it.
+	 *
+	 * \return integer handle to the created reservation
+	 *
+	 * \note This method is not thread-safe.
+	 */
+	int reserve(int start, int end) {
+		int handle = -1;
+		
+		start = normalizeRowIndex(start);
+		end   = normalizeRowIndex(end);
+		
+		if (freeReservations_.size() > 0) {
+			handle = freeReservations_.back();
+			freeReservations_.pop_back();
+		} else {
+			handle = reservations_.size();
+			reservations_.push_back(Reservation());
+		}
+		
+		reservations_[handle].init(start, end);
+
+		return handle;
+	}
+	
+	/**
+	 * \brief Frees a reservation previously created by reserve().
+	 *
+	 * \param handle handle to the reservation returned by the reserve() method
+	 *
+	 * \note This method is not thread-safe.
+	 */
+	bool freeReservation(int handle) {
+		if ((handle < 0) || (handle >= reservations_.size()))
+			return false;
+		reservations_[handle].free();
+		freeReservations_.push_back(handle);
+		return true;
+	}
+	
+	bool isDirty(int handle) {
+		assert((handle >= 0) && (handle < (int)reservations_.size()));
+		return reservations_[handle].dirty;
 	}
 };
 
