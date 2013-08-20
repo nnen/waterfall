@@ -83,6 +83,11 @@ public:
 	Backend();
 	virtual ~Backend() {}
 	
+	/**
+	 * \brief Return the stream information passed to the backend through startStream().
+	 */
+	StreamInfo getStreamInfo() const { return streamInfo_; }
+	
 	virtual void startStream(StreamInfo info) { streamInfo_ = info; }
 	virtual void process(const vector<Complex> &data, DataInfo info) = 0;
 	virtual void endStream() {}

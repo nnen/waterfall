@@ -36,7 +36,7 @@ private:
 	DataInfo      info_;
 	
 protected:
-	int   bins_;
+	int   bins_; //< Number of FFT output bins.
 	/// Number of FFT results per second (Hz).
 	float fftSampleRate_;
 	
@@ -45,6 +45,15 @@ protected:
 public:
 	FFTBackend(int bins, int overlap);
 	virtual ~FFTBackend();
+	
+	/**
+	 * \brief Returns number of the FFT bins.
+	 */
+	int   getBins()          const { return bins_; }
+	/**
+	 * \brief Returns number of FFT samples (results) per second (in Hz).
+	 */
+	float getFFTSampleRate() const { return fftSampleRate_; }
 	
 	virtual void startStream(StreamInfo info);
 	virtual void process(const vector<Complex> &data, DataInfo info);

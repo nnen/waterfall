@@ -220,6 +220,12 @@ private:
 	}
 
 public:
+	RingBuffer2D() :
+		width_(0), minCapacity_(0), chunkSizeLimit_(0),
+		capacity_(0), chunkElements_(0), chunkRows_(0), chunkCount_(0), chunks_(NULL),
+		head_(), size_(0)
+	{}
+	
 	RingBuffer2D(int width, int chunkSize) :
 		width_(width), minCapacity_(0), chunkSizeLimit_(chunkSize),
 		capacity_(0), chunkElements_(0), chunkRows_(0), chunkCount_(0), chunks_(NULL),
@@ -266,6 +272,40 @@ public:
 		size_ = 0;
 	}
 	
+	/**
+	 * \brief Resizes the ring buffer, discarding all current data in process.
+	 */
+	void resize(int width, int chunkSize, int capacity)
+	{
+		dispose();
+
+		width_          = width;
+		chunkSizeLimit_ = chunkSize;
+		
+		// Calculate chunk metrics
+		int rowSize = sizeof(T) * width_;
+		chunkRows_ = chunkSizeLimit_ / rowSize;
+		if ((chunkSizeLimit_ % rowSize) != 0) chunkRows_++;
+		
+		chunkElements_ = chunkRows_ * width;
+		
+		// Calculate capacities/sizes
+		minCapacity_ = capacity;
+		
+		chunkCount_ = minCapacity_ / chunkRows_;
+		if ((minCapacity_ % chunkRows_) > 0) chunkCount_ += 1;
+		
+		capacity_ = chunkCount_ * chunkRows_;
+		
+		// Allocate memory
+		chunks_ = new pointer[chunkCount_];
+		for (int i = 0; i < chunkCount_; i++) {
+			chunks_[i] = new T[chunkElements_];
+		}
+		
+		clear();
+	}
+	
 	void resize(int capacity)
 	{
 		dispose();
@@ -301,6 +341,12 @@ public:
 		}
 		
 		return result;
+	}
+	
+	pointer at(int mark)
+	{
+		int rowIndex = normalizeRowIndex(mark);
+		return getItem(rowIndex).item;
 	}
 	
 	int mark()
@@ -404,13 +450,16 @@ public:
 	 * \note This method is not thread-safe.
 	 */
 	bool freeReservation(int handle) {
-		if ((handle < 0) || (handle >= reservations_.size()))
+		if ((handle < 0) || (handle >= (int)reservations_.size()))
 			return false;
 		reservations_[handle].free();
 		freeReservations_.push_back(handle);
 		return true;
 	}
 	
+	/**
+	 * \brief Returns \c true if the reservation with the specified handle has been written to.
+	 */
 	bool isDirty(int handle) {
 		assert((handle >= 0) && (handle < (int)reservations_.size()));
 		return reservations_[handle].dirty;

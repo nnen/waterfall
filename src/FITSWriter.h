@@ -96,7 +96,7 @@ public:
 	 *
 	 * \param fileName file name of the created file
 	 */
-	void open(string fileName);
+	bool open(string fileName);
 	void close();
 	void createImage(long width, long height, int type = FLOAT_IMG);
 	
@@ -124,6 +124,8 @@ public:
 	/**
 	 * \brief Write FITS pixel data to the current HDU.
 	 *
+	 * \note Unlike FITSIO API, this method uses zero-based indexing of the pixel position.
+	 *
 	 * \param x     Position of the first pixel in \c data in the first dimension.
 	 * \param y     Position of the first pixel in \c data in the second dimension.
 	 * \param count Number of pixels to write.
@@ -132,6 +134,8 @@ public:
 	 */
 	void write(long x, long y, long count, void *data, int type);
 	void write(long y, long count, float *data);
+	
+	void checkStatus(const char *errorMsg);
 };
 
 

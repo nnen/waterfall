@@ -12,12 +12,17 @@
 
 #include "FFTBackend.h"
 #include "FITSWriter.h"
+#include "RingBuffer.h"
+#include "Channel.h"
 
 #include <cmath>
 
 using namespace std;
 
 #include <fitsio.h>
+
+
+#define WATERFALL_BACKEND_CHUNK_SIZE (1024 * 1024)
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -171,6 +176,109 @@ public:
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// RECORDER
+////////////////////////////////////////////////////////////////////////////////
+
+
+class WaterfallBackend;
+
+
+class Recorder : public Object {
+protected:
+	Ref<WaterfallBackend>  backend_;
+	RingBuffer2D<float>   *buffer_;
+	Mutex                 *bufferMutex_;
+	
+public:
+	Recorder(Ref<WaterfallBackend>  backend,
+		    RingBuffer2D<float>   *buffer,
+		    Mutex                 *bufferMutex) :
+		backend_(backend),
+		buffer_(buffer),
+		bufferMutex_(bufferMutex)
+	{}
+	
+	virtual ~Recorder() {
+		backend_     = NULL;
+		buffer_      = NULL;
+		bufferMutex_ = NULL;
+	}
+	
+	virtual int requestBufferSize() { return 0; }
+	
+	virtual void start() {}
+	virtual void stop() {}
+	virtual void update() = 0;
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
+// SNAPSHOT RECORDER
+////////////////////////////////////////////////////////////////////////////////
+
+
+class SnapshotRecorder : public Recorder {
+protected:
+	struct Snapshot {
+		int start;
+		int length;
+		
+		int reservation;
+		
+		Snapshot() :
+			start(0), length(0),
+			reservation(-1)
+		{}
+
+		Snapshot(int start) :
+			start(start), length(0),
+			reservation(-1)
+		{}
+
+		inline int end() const { return start + length; }
+	};
+	
+	int   snapshotLength_;
+	float leftFrequency_;
+	float rightFrequency_;
+	
+	int      snapshotRows_;
+	int      leftBin_;
+	int      rightBin_;
+	Snapshot nextSnapshot_;
+	
+	typedef MethodThread<void, SnapshotRecorder> Thread;
+	Thread            *workerThread_;
+	Channel<Snapshot>  snapshots_;
+	
+	void*        threadMethod();
+	void         startWriting();
+	virtual void write(Snapshot snapshot);
+
+public:
+	SnapshotRecorder(Ref<WaterfallBackend>  backend,
+				  RingBuffer2D<float>   *buffer,
+				  Mutex                 *bufferMutex,
+				  int                    snapshotLength,
+				  float                  leftFrequency,
+				  float                  rightFrequency) :
+		Recorder(backend, buffer, bufferMutex),
+		snapshotLength_(snapshotLength),
+		leftFrequency_(leftFrequency),
+		rightFrequency_(rightFrequency)
+	{}
+	
+	virtual ~SnapshotRecorder() {}
+	
+	virtual int requestBufferSize();
+	
+	virtual void start();
+	virtual void stop();
+	virtual void update();
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
 // WATERFALL BACKEND
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -185,46 +293,50 @@ private:
 	string           origin_;
 	
 	/// Snapshot length in seconds (determines the size of the buffer).
-	float            snapshotLength_;
+	//float            snapshotLength_;
 	
-	WaterfallBuffer  inBuffer_;
-	WaterfallBuffer  outBuffer_;
+	//WaterfallBuffer  inBuffer_;
+	//WaterfallBuffer  outBuffer_;
+	RingBuffer2D<float> buffer_;
+	Mutex               bufferMutex_;
 	
-	float            leftFrequency_;
-	float            rightFrequency_;
-	int              leftBin_;
-	int              rightBin_;
+	vector<Ref<Recorder> > recorders_;
 	
-	MethodThread<void, WaterfallBackend> *snapshotThread_;
-	Mutex                                 mutex_;
-	Condition                             snapshotCondition_;
-	bool                                  endSnapshotThread_;
+	//float            leftFrequency_;
+	//float            rightFrequency_;
+	//int              leftBin_;
+	//int              rightBin_;
+	//
+	//MethodThread<void, WaterfallBackend> *snapshotThread_;
+	//Mutex                                 mutex_;
+	//Condition                             snapshotCondition_;
+	//bool                                  endSnapshotThread_;
 	
-	void writeHeader(fitsfile   *file,
-				  const char *keyword,
-				  int         type,
-				  void       *value,
-				  const char *comment,
-				  int        *status);
-	void writeHeader(fitsfile   *file,
-				  const char *keyword,
-				  const char *value,
-				  const char *comment,
-				  int        *status);
-	void writeHeader(fitsfile   *file,
-				  const char *keyword,
-				  float       value,
-				  const char *comment,
-				  int        *status);
-	void writeHeader(fitsfile   *file,
-				  const char *keyword,
-				  int         value,
-				  const char *comment,
-				  int        *status);
+	//void writeHeader(fitsfile   *file,
+	//			  const char *keyword,
+	//			  int         type,
+	//			  void       *value,
+	//			  const char *comment,
+	//			  int        *status);
+	//void writeHeader(fitsfile   *file,
+	//			  const char *keyword,
+	//			  const char *value,
+	//			  const char *comment,
+	//			  int        *status);
+	//void writeHeader(fitsfile   *file,
+	//			  const char *keyword,
+	//			  float       value,
+	//			  const char *comment,
+	//			  int        *status);
+	//void writeHeader(fitsfile   *file,
+	//			  const char *keyword,
+	//			  int         value,
+	//			  const char *comment,
+	//			  int        *status);
 	
-	void* snapshotThread();
-	void  makeSnapshot();
-	void  startSnapshot();
+	//void* snapshotThread();
+	//void  makeSnapshot();
+	//void  startSnapshot();
 
 protected:
 	virtual void processFFT(const fftw_complex *data, int size, DataInfo info);
@@ -237,6 +349,8 @@ public:
 				  float leftFrequency,
 				  float rightFrequency);
 	virtual ~WaterfallBackend();
+	
+	string getOrigin() { return origin_; }
 	
 	virtual void startStream(StreamInfo info);
 	virtual void endStream();

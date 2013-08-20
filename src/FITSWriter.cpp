@@ -37,12 +37,14 @@ FITSWriter::~FITSWriter()
 }
 
 
-void FITSWriter::open(string fileName)
+bool FITSWriter::open(string fileName)
 {
 	fileName_ = fileName;
 
 	fits_create_file(&file_, fileName_.c_str(), status_);
 	CHECK_STATUS("Failed to open FITS file \"" << fileName_ << "\".");
+	
+	return status_.isOK();
 }
 
 
@@ -135,6 +137,12 @@ void FITSWriter::write(long x, long y, long count, void *data, int type)
 void FITSWriter::write(long y, long count, float *data)
 {
 	write(0, y, count * dimensions_[0], data, TFLOAT);
+}
+
+
+void FITSWriter::checkStatus(const char *errorMsg)
+{
+	CHECK_STATUS(errorMsg);
 }
 
 
