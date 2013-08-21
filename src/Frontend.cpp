@@ -52,3 +52,9 @@ void Frontend::process(const vector<Complex> &data)
 }
 
 
+void Frontend::stop()
+{
+	stopping_ = true;
+}
+
+

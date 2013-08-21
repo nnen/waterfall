@@ -108,11 +108,13 @@ void JackFrontend::run()
 				rightInputName_ << "\"!");
 		return;
 	}
-
+	
 	// Yep, active waiting. Pretty much.
-	while (true) {
+	while (!stopping_) {
 		sleep(2);
 	}
+
+	endStream();
 	
 	jack_client_close(client);
 }

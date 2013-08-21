@@ -28,17 +28,21 @@ protected:
 	StreamInfo   streamInfo_;
 	DataInfo     dataInfo_;
 	
+	bool         stopping_;
+	
 	void startStream();
 	void endStream();
 	void process(const vector<Complex> &data);
 	
 public:
-	Frontend() {}
+	Frontend() : stopping_(false) {}
 	virtual ~Frontend() {}
 	
 	void setBackend(Ref<Backend> backend) { backend_ = backend; }
 	
 	virtual void run() = 0;
+	
+	virtual void stop();
 };
 
 #endif /* end of include guard: FRONTEND_OBVGMG1U */

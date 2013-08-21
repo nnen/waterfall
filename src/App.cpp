@@ -9,7 +9,7 @@
 #include "App.h"
 
 
-Ref<Frontend> App::getFrontend()
+Ref<Frontend> App::createFrontend()
 {
 	//Ref<Input> input;
 	//
@@ -35,7 +35,7 @@ Ref<Frontend> App::getFrontend()
 }
 
 
-Ref<Backend> App::getBackend()
+Ref<Backend> App::createBackend()
 {
 	Ref<Config> cfg = config();
 	
@@ -80,11 +80,16 @@ int App::onRun()
 	// 	setOutput(new FileOutput(input_->getFileNameWithExt("png")));
 	// }
 	
-	Ref<Frontend> frontend = getFrontend();
-	Ref<Backend>  backend  = getBackend();
-
-	frontend->setBackend(backend);
-	frontend->run();
+	frontend_ = createFrontend();
+	backend_  = createBackend();
+	
+	frontend_->setBackend(backend_);
+	
+	Signal::INT.install();
+	Signal::INT.pushMethod(this, &App::interruptHandler);
+	frontend_->run();
+	Signal::INT.pop();
+	Signal::INT.uninstall();
 	
 	// WAVStream stream(input_);
 	// //Ref<Backend> backend = new SimpleWaterfallBackend(output(), 0.2, 0.1);
@@ -98,6 +103,13 @@ int App::onRun()
 	// stream.run();
 	
 	return 0;
+}
+
+
+void App::interruptHandler(int sigNum)
+{
+	LOG_WARNING("Received INT signal, stopping the frontend.");
+	frontend_->stop();
 }
 
 

@@ -18,6 +18,7 @@ using namespace cppapp;
 #include "WAVStream.h"
 #include "JackFrontend.h"
 #include "WaterfallBackend.h"
+#include "Signal.h"
 
 
 /**
@@ -32,11 +33,16 @@ private:
 protected:
 	// inline Ref<Input> input() { return input_; }
 	
-	Ref<Frontend> getFrontend();
-	Ref<Backend>  getBackend();
+	Ref<Frontend> frontend_;
+	Ref<Backend>  backend_;
+	
+	Ref<Frontend> createFrontend();
+	Ref<Backend>  createBackend();
 	
 	virtual void setUp();
 	virtual int onRun();
+	
+	void interruptHandler(int sigNum);
 
 public:
 	App();
