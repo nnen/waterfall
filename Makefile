@@ -17,8 +17,8 @@ DEP_FILES    = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.d,$(CPP_FILE
 DOCS_ARCH    = $(BIN_NAME)-$(VERSION)-docs.html.tar.gz
 
 UNAME       := $(shell uname)
-CXXFLAGS     = -g -O0 -Wall -Icppapp
-LDFLAGS      = -Lcppapp -lcppapp -lfftw3 -lcfitsio
+CXXFLAGS     = -g -O0 -Wall -Icppapp $(shell python2.7-config --cflags)
+LDFLAGS      = -Lcppapp -lcppapp -lfftw3 -lcfitsio $(shell python2.7-config --ldflags)
 ifeq ($(UNAME),Darwin)
 	LDFLAGS += -framework jackmp
 else
