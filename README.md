@@ -29,13 +29,6 @@ Compilation
         $ cd cppapp
         $ make
 
-4. Change directory to the `cppapp` subdirectory and build the cppapp library:
-        
-        $ cd cppapp
-        $ autoreconf --install
-        $ ./configure
-        $ make 
-
 5. In the `waterfall` directory, run `make`. The resulting binary, named
    `waterfall`, should appear in the project's root directory.
 6. If anything goes wrong, please send me an email with the output at
