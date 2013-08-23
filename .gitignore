@@ -1,8 +1,13 @@
 *.swp
+*~
 
 *.d
 *.o
+waterfall
+waterfall-*-docs.html.tar.gz
+docs
 
 *.fits
 *.wav
 *.png
+*.bak
