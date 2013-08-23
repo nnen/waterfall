@@ -16,6 +16,87 @@ using namespace std;
 #include <cppapp/utils.h>
 
 
+////////////////////////////////////////////////////////////////////////////////
+// IQGainPhaseCorrection
+////////////////////////////////////////////////////////////////////////////////
+
+
+void IQGainPhaseCorrection::setGain(SampleType gain)
+{
+	gain_ = gain;
+}
+
+
+void IQGainPhaseCorrection::setPhaseShift(int phaseShift)
+{
+	phaseShift_ = phaseShift;
+	buffer_.resize(phaseShift);
+}
+
+
+/**
+ * \verbatim
+ * section                   |   I    |          II          |  III   |
+ * --------------------------+--------+----------------------+--------+
+ * inData (I)                |-- 1 ---|---------- 2 ---------|
+ * inData (Q)                         |---------- 3 ---------|-- 4 ---|
+ * buffer (Q)   |---- 5 -----|-- 6 ---|                      |        |
+ * --------------------------------------------------------------------
+ * outData (I)               |-- 1 ---|---------- 2 ---------|
+ * outData (Q)               |-- 6 ---|---------- 3 ---------|
+ * buffer  (Q)                                  |---- 3 -----|-- 4 ---|
+ * --------------------------+--------+--------------------------------
+ *                           |        |
+ *                           phase shift
+ * \endverbatim
+ */
+void IQGainPhaseCorrection::process(const Complex *inData,
+							 int            length,
+							 Complex       *outData)
+{
+	// Initialization
+	int remaining = length;
+	int offset    = 0;
+	
+	// Section I
+	int chunk = phaseShift_;
+	if (remaining < chunk) chunk = remaining;
+	remaining -= chunk;
+	offset    += chunk;
+	
+	int mark = buffer_.head() - phaseShift_;
+	
+	for (int i = 0; i < chunk; i++) {
+		outData[i].real = inData[i].real;
+		outData[i].imag = buffer_.at(mark + i) + gain_;
+	}
+	
+	// Section II
+	chunk = remaining - phaseShift_;
+	if (chunk > 0) {
+		for (int i = 0; i < chunk; i++) {
+			outData[offset + i].real = inData[offset + i].real;
+			outData[offset + i].imag = inData[i].imag + gain_;
+			buffer_.push(inData[i].imag);
+		}
+		remaining -= chunk;
+		offset    += chunk;
+	}
+	
+	// Section III
+	if (remaining > 0) {
+		for (int i = 0; i < remaining; i++) {
+			buffer_.push(inData[offset + i].imag);
+		}
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// FFTBackend
+////////////////////////////////////////////////////////////////////////////////
+
+
 const double FFTBackend::PI = 4.0 * atan(1.0);
 
 
@@ -112,32 +193,44 @@ void FFTBackend::process(const vector<Complex> &data, DataInfo info)
 	
 	info_.timeOffset = info.timeOffset;
 	
+	// Loop while there is enough remaining data for another FFT window.
 	while (size >= (inEnd_ - inMark_)) {
 		int count = inEnd_ - inMark_;
 		
-		memcpy(inMark_, src, count * sizeof(in_[0]));
+		// Copy the incoming data to the window buffer
+		//memcpy(inMark_, src, count * sizeof(in_[0]));
+		correction_.process(src, count, (Complex*)inMark_);
 		
+		// From the window buffer, copy the data to the FFT input buffer, aplying
+		// the window function
 		for (int i = 0; i < bins_; i++) {
 			in_[i][0] = window_[i][0] * windowFn_[i];
 			in_[i][1] = window_[i][1] * windowFn_[i];
 		}
 		
+		// Execute FFT
 		fftw_execute(fftPlan_);
+		
+		// Copy the overlap back to the beginning of the window buffer.
 		memmove(window_, inEnd_ - binOverlap_, binOverlap_ * sizeof(in_[0]));
 		
+		// Update variables to keep track of the remaining data/work.
 		inMark_ = window_ + binOverlap_;
 		size -= count;
 		src += count;
 		
+		// Pass the FFT data to the derived class.
 		processFFT(out_, bins_, info_);
 		
 		info_.offset++;
 		info_.timeOffset = info_.timeOffset.addSamples(count, streamInfo_.sampleRate);
-		//LOG_DEBUG("offset = " << info_.timeOffset << ", count = " << count << ", sr = " << streamInfo_.sampleRate);
 	}
 	
+	// If there are any remaining I/Q samples (but not enough for a complete
+	// window, copy them to the window buffer and move the mark.
 	if (size > 0) {
-		memcpy(inMark_, src, size * sizeof(in_[0]));
+		//memcpy(inMark_, src, size * sizeof(in_[0]));
+		correction_.process(src, size, (Complex*)inMark_);
 		inMark_ += size;
 	}
 }

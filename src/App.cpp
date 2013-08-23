@@ -39,7 +39,7 @@ Ref<Backend> App::createBackend()
 {
 	Ref<Config> cfg = config();
 	
-	return new WaterfallBackend(
+	Ref<WaterfallBackend> backend = new WaterfallBackend(
 		cfg->get("fft_bins",    "32768")->asInteger(),
 		cfg->get("fft_overlap", "24576")->asInteger(),
 		
@@ -49,6 +49,13 @@ Ref<Backend> App::createBackend()
 		config()->get("waterfall_left_freq",   "0")->asFloat(),
 		config()->get("waterfall_right_freq",  "0")->asFloat()
 	);
+	
+	backend->setGain(
+		config()->get("iq_gain", "0")->asFloat());
+	backend->setPhaseShift(
+		config()->get("iq_phase_shift", "0")->asInteger());
+	
+	return backend;
 }
 
 

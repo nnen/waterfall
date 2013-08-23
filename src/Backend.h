@@ -19,6 +19,10 @@ using namespace cppapp;
 
 #include "WFTime.h"
 
+
+typedef double SampleType;
+
+
 //typedef double Complex[2];
 struct Complex {
 	double real;

@@ -12,6 +12,30 @@
 #include <fftw3.h>
 
 #include "Backend.h"
+#include "RingBuffer.h"
+
+
+class IQGainPhaseCorrection {
+private:
+	SampleType             gain_;
+	int                    phaseShift_;
+	
+	RingBuffer<SampleType> buffer_;
+
+public:
+	IQGainPhaseCorrection() :
+		gain_(0.0f), phaseShift_(0)
+	{}
+	
+	SampleType getGain() const { return gain_; }
+	void setGain(SampleType gain);
+	
+	int getPhaseShift() const { return phaseShift_; }
+	void setPhaseShift(int phaseShift);
+	
+	void process(const Complex *inData, int length, Complex *outData);
+};
+
 
 /**
  * \todo Write documentation for class FFTBackend.
@@ -24,13 +48,17 @@ private:
 	
 	//int bins_;
 	int binOverlap_;
-	int bufferSize_;
+	int bufferSize_; //< buffer size in bytes
 	
-	float        *windowFn_;
+	IQGainPhaseCorrection correction_;
 	
-	fftw_complex *window_;
-	fftw_complex *in_, *out_;
-	fftw_complex *inMark_, *inEnd_;
+	float        *windowFn_;  //< table containing the values of the window function
+	
+	fftw_complex *window_;    //< buffer to store incoming I/Q samples
+	fftw_complex *inMark_;    //< points to the current position in the FFTBackend::window_ buffer
+	fftw_complex *inEnd_;     //< points to the item after the last in the FFTBackend::window_ buffer
+	
+	fftw_complex *in_, *out_; //< input and output FFT buffers
 	fftw_plan     fftPlan_;
 	
 	DataInfo      info_;
@@ -54,6 +82,12 @@ public:
 	 * \brief Returns number of FFT samples (results) per second (in Hz).
 	 */
 	float getFFTSampleRate() const { return fftSampleRate_; }
+	
+	SampleType getGain() { return correction_.getGain(); }
+	void       setGain(SampleType value) { correction_.setGain(value); }
+	
+	int        getPhaseShift() { return correction_.getPhaseShift(); }
+	void       setPhaseShift(int value) { correction_.setPhaseShift(value); } 
 	
 	virtual void startStream(StreamInfo info);
 	virtual void process(const vector<Complex> &data, DataInfo info);

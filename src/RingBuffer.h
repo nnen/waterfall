@@ -17,104 +17,187 @@
 template<class T>
 class RingBuffer {
 private:
-	T   *buffer_;
 	int  capacity_;
+	
+	T   *items_;
+	
 	T   *head_;
-	T   *tail_;
+	int  size_;
 	
 public:
+	void resize(int capacity)
+	{
+		if (capacity_ > capacity)
+			return;
+		
+		// Alloc new items.
+		T *newItems = NULL;
+		if (capacity > 0) newItems = new T[capacity];
+		
+		// Copy old items.
+		int newSize = size_;
+		if (newSize > capacity) newSize = capacity;
+		
+		//
+		//                        head
+		//                         |
+		// old items    |--- 2 ----|--------------|-- 1 --|
+		// new items    |-- 1 --|--- 2 ----|--------------------|
+		//                                 |
+		//                                head
+		//
+		if (newSize > 0) {
+			int offset = normalize(head() - newSize);
+			int remaining = newSize;
+			
+			// Copy section 1
+			int chunk = capacity_ - offset;
+			if (chunk > remaining) chunk = remaining;
+			remaining -= chunk;
+			
+			for (int i = 0; i < chunk; i++)
+				newItems[i] = items_[offset + i];
+			
+			// Copy section 2
+			if (remaining > 0) {
+				for (int i = 0; i < remaining; i++)
+					newItems[chunk + i] = items_[i];
+			}
+		}
+		
+		// Clean up old items.
+		delete [] items_;
+		items_    = newItems;
+		capacity_ = capacity;
+		head_     = items_;
+		size_     = newSize;
+	}
+	
+	RingBuffer() :
+		capacity_(0), items_(NULL), head_(NULL), size_(0)
+	{}
+	
 	/**
 	 * Constructor.
 	 */
 	RingBuffer(int capacity) :
-		buffer_(NULL), capacity_(capacity), head_(NULL), tail_(NULL)
+		capacity_(0), items_(NULL), head_(NULL), size_(0)
 	{
 		assert(capacity >= 0);
-
-		if (capacity > 0) {
-			buffer_ = new T[capacity];
-			head_ = buffer_;
-			tail_ = buffer_;
-		}
+		resize(capacity);
 	}
+	
 	/**
 	 * Copy constructor.
 	 */
 	RingBuffer(const RingBuffer& other) :
-		buffer_(NULL), capacity_(other.capacity_), head_(NULL), tail_(NULL)
+		capacity_(0), items_(NULL), head_(NULL), size_(0)
 	{
+		resize(other.capacity_);
+		
 		if (capacity_ > 0) {
-			buffer_ = new T[capacity_];
-			head_ = buffer_ + (other.head_ - other.buffer_);
-			tail_ = buffer_ + (other.tail_ - other.buffer_);
+			head_ = items_ + (other.head_ - other.items_);
+			size_ = other.size_;
 			
-			if (head_ >= tail_) {
-				memcpy(tail_, other.tail_, sizeof(T) * getSize());
+			T *tail = head_ - size_;
+			T *otherTail = other.head_ - size_;
+			
+			if (tail >= items_) {
+				memcpy(tail, otherTail, sizeof(T) * size_);
 			} else {
-				memcpy(tail_, other.tail_,
-					  sizeof(T) * (buffer_ + capacity_ - tail_));
-				memcpy(tail_, other.buffer_,
-					  sizeof(T) * (head_ - buffer_));
+				tail      += capacity_;
+				otherTail += capacity_;
+
+				size_t tailSize = size_ - (head_ - items_);
+				
+				memcpy(tail, otherTail,
+					  sizeof(T) * tailSize);
+				memcpy(items_, other.items_,
+					  sizeof(T) * (size_ - tailSize));
 			}
 		}
 	}
+	
 	/**
 	 * Destructor.
 	 */
 	~RingBuffer()
 	{
-		delete [] buffer_;
-		buffer_ = NULL;
 		capacity_ = 0;
+		delete [] items_;
+		items_ = NULL;
 		head_ = NULL;
-		tail_ = NULL;
+		size_ = 0;
 	}
 	
-	inline bool isEmpty()     const { return head_ == tail_; }
-	inline bool isFull()      const
-	{
-		if (head_ + 1 == buffer_ + capacity_)
-			return (tail_ == buffer_);
-		return (head_ + 1 == tail_);
-	}
+	inline bool isEmpty()     const { return size_ == 0; }
+	inline bool isFull()      const { return size_ == capacity_; }
 	inline int  getCapacity() const { return capacity_; }
+	inline int  getSize()     const { return size_; }
 	
-	int  getSize()     const
+	inline void clear()
 	{
-		if (head_ >= tail_)
-			return head_ - tail_;
-		return capacity_ - (tail_ - head_);
+		head_ = items_;
+		size_ = 0;
 	}
 	
-	bool tryPop(T *item)
+	inline void clear(const T& value)
 	{
-		if (isEmpty()) return false;
+		clear();
 		
-		if (item != NULL)
-			*item = *tail_;
-		tail_++;
-		if (tail_ >= buffer_ + capacity_)
-			tail_ = buffer_;
-
-		return true;
+		for (T *p = items_; p < (items_ + capacity_); p++)
+			*p = value;
 	}
 	
-	T pop(T defaultValue)
+	inline int normalize(int mark)
 	{
-		T result;
-		if (tryPop(&result)) return result;
-		return defaultValue;
+		return mark % capacity_;
 	}
 	
-	void push(const T &item)
+	inline int head() { return head_ - items_; }
+	
+	inline T& at(int mark)
 	{
-		if (isFull()) tryPop(NULL);
+		return items_[normalize(mark)];
+	}
+	
+	inline void push(const T &item)
+	{
+		if (capacity_ < 1) return;
 		
 		*head_ = item;
 		head_++;
 		
-		if (head_ >= buffer_ + capacity_)
-			head_ = buffer_;
+		if (head_ >= (items_ + capacity_))
+			head_ = items_;
+		
+		if (size_ < capacity_) size_++;
+	}
+	
+	inline void push(const T *items, int count)
+	{
+		// If pushing more items that the buffer can hold,
+		// clear the buffer and copy the last n items to the
+		// buffer.
+		if (count >= capacity_) {
+			clear();
+			int offset = count - capacity_;
+			for (int i = 0; i < capacity_; i++) {
+				items_[i] = items[offset + i];
+			}
+			return;
+		}
+		
+		// Otherwise, start copying the pushed items to the
+		// buffer at the head.
+		int offset = head_ - items_;
+		for (int i = 0; i < count; i++) {
+			items_[offset] = items[i];
+			offset = (offset + 1) % capacity_;
+		}
+		head_ = items_ + offset;
+		size_ += count;
+		if (size_ > capacity_) size_ = capacity_;
 	}
 };
 

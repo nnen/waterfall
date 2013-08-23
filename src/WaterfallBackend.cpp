@@ -201,10 +201,10 @@ void SnapshotRecorder::write(Snapshot snapshot)
 	//writeHeader(fptr, "CRVAL2", (float)time.seconds(),       "",           &status);
 	//writeHeader(fptr, "CDELT2", 1.f / (float)fftSampleRate,  "",           &status);
 	
-	w.writeHeader("CTYPE1", "FREQ",                            "in Hz");
-	w.writeHeader("CRPIX1", 1.f,                               ""     );
-	w.writeHeader("CRVAL1", (float)leftFrequency_,             ""     );
-	w.writeHeader("CDELT1", (float)backend_->binToFrequency(), ""     );
+	w.writeHeader("CTYPE1", "FREQ",                             "in Hz");
+	w.writeHeader("CRPIX1", 1.f,                                ""     );
+	w.writeHeader("CRVAL1", (float)rightFrequency_,             ""     );
+	w.writeHeader("CDELT1", (float)-backend_->binToFrequency(), ""     );
 	//writeHeader(fptr, "CTYPE1", "FREQ",                            "in Hz", &status);
 	//writeHeader(fptr, "CRPIX1", 1.f,                               "",      &status);
 	//writeHeader(fptr, "CRVAL1", (float)leftFrequency_,             "",      &status);

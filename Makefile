@@ -14,6 +14,9 @@ H_FILES      = $(shell ls $(SRC_DIR)/*.h)
 OBJECT_FILES = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.o,$(CPP_FILE)))
 DEP_FILES    = $(foreach CPP_FILE, $(CPP_FILES), $(patsubst %.cpp,%.d,$(CPP_FILE)))
 
+TESTS_DIR    = tests
+TEST_BIN     = $(TESTS_DIR)/tests
+
 DOCS_ARCH    = $(BIN_NAME)-$(VERSION)-docs.html.tar.gz
 
 UNAME       := $(shell uname)
@@ -38,6 +41,7 @@ build: $(BIN_NAME)
 clean:
 	@echo "========= CLEANING =================================================="
 	rm -f $(OBJECT_FILES) $(BIN_NAME)
+	$(MAKE) -C $(TESTS_DIR) clean
 	@echo
 
 
@@ -47,6 +51,11 @@ rebuild:
 
 
 deps: $(DEP_FILES)
+
+
+test: build
+	$(MAKE) -C $(TESTS_DIR)
+	$(TEST_BIN)
 
 
 clean-deps:
@@ -81,7 +90,7 @@ endif
 	@echo
 
 
-.PHONY: all build clean rebuild deps clean-deps docs clean-docs
+.PHONY: all build clean rebuild deps test clean-deps docs clean-docs
 
 
 %.d: %.cpp $(H_FILES)

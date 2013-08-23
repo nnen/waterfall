@@ -17,8 +17,15 @@ Planned Features
 
 Features:
 
+  - I/Q signal gain and phase correction.
   - New ring buffer that would support both continuous snapshots and
     event-triggered data collection.
+
+
+### v0.3
+
+Features:
+
   - Implement a scripting language API and interpreter that could be used to
     detect events and control data collection.
 
