@@ -9,6 +9,10 @@
 #ifndef RINGBUFFER_HSQMLSDG
 #define RINGBUFFER_HSQMLSDG
 
+
+#include <limits>
+
+
 /**
  * \todo Write documentation for class RingBuffer.
  *
@@ -204,13 +208,18 @@ public:
 
 template<class T>
 class RingBuffer2D {
-private:
+public:
 	typedef T                 value_type;
 	typedef value_type&       reference;
 	typedef const value_type& const_reference;
 	typedef value_type*       pointer;
 	typedef const value_type* const_pointer;
 	
+	typedef int gen_type;
+	static const gen_type GEN_WRAP_HIGH;
+	static const gen_type GEN_WRAP_LOW;
+	
+private:
 	int width_;          //< Width of a row in number of elements.
 	int minCapacity_;    //< Desired (minimal) capacity of the buffer in number of rows.
 	int chunkSizeLimit_; //< Maximal desired chunk size in bytes.
@@ -222,40 +231,97 @@ private:
 	pointer *chunks_;        //< Array of pointers to chunks.
 	
 	struct ChunkItem {
-		pointer *chunk; //< Points to an item in RingBuffer2D::chunks_.
-		pointer  item;  //< Points to an item in the selected chunk.
+		//RingBuffer2D<T> *buffer;
+		pointer         *chunk; //< Points to an item in RingBuffer2D::chunks_.
+		pointer          item;  //< Points to an item in the selected chunk.
+		int              index; //< 
+		gen_type         generation;
 		
 		ChunkItem() :
-			chunk(NULL), item(NULL)
-		{ }
-		
-		ChunkItem(pointer *chunk, pointer item) :
-			chunk(chunk), item(item)
+			chunk(NULL), item(NULL), generation(0)
 		{ }
 
-		ChunkItem(pointer *chunk, int item) :
-			chunk(chunk), item(*chunk + item)
+		ChunkItem(const RingBuffer2D<T> &buffer) :
+			chunk(buffer.chunks_), item(*chunk), index(0), generation(0)
 		{ }
+		
+		//ChunkItem(pointer *chunk, pointer item) :
+		//	chunk(chunk), item(item), generation(0)
+		//{ }
+		//
+		//ChunkItem(pointer *chunk, int item) :
+		//	chunk(chunk), item(*chunk + item), generation(0)
+		//{ }
+		
+		ChunkItem(const RingBuffer2D<T> &buffer, int index, int gen) :
+			chunk(buffer.chunks_ + (index / buffer.chunkRows_)),
+			item(*chunk + ((index % buffer.chunkRows_) * buffer.width_)),
+			index(index),
+			generation(gen)
+		{
+			assert(chunk >= buffer.chunks_);
+			assert(chunk < (buffer.chunks_ + buffer.chunkCount_));
+			
+			assert(item >= *chunk);
+			assert(item < (*chunk + buffer.chunkElements_));
+			
+			assert(index >= 0);
+			assert(index < buffer.capacity_);
+		}
+		
+		inline bool isBefore(const ChunkItem &other)
+		{
+			return ((generation < other.generation) ||
+				   ((generation > GEN_WRAP_HIGH) && (other.generation < GEN_WRAP_LOW)));
+		}
+		
+		inline ChunkItem advance(const RingBuffer2D<T> &buffer, int delta) const
+		{
+			return ChunkItem(buffer,
+						  buffer.normalizeRowIndex(index + delta),
+						  generation + delta);
+		}
+		
+		inline ChunkItem advance(const RingBuffer2D<T> &buffer) const
+		{
+			ChunkItem result = *this;
+			
+			result.index++;
+			result.index %= buffer.capacity_;
+			result.generation++;
+			
+			result.item += buffer.width_;
+			
+			if (result.item >= (*result.chunk + buffer.chunkElements_)) {
+				result.chunk++;
+				if (result.chunk >= (buffer.chunks_ + buffer.chunkCount_))
+					result.chunk = buffer.chunks_;
+				result.item = *result.chunk;
+			}
+			
+			return result;
+		}
 	};
 	
 	ChunkItem head_;
 	int       size_;
 	
-	inline ChunkItem advance(const ChunkItem item) const
-	{
-		ChunkItem result = item;
-		
-		result.item += width_;
-		
-		if (result.item >= (*result.chunk + chunkElements_)) {
-			result.chunk++;
-			if (result.chunk >= (chunks_ + chunkCount_))
-				result.chunk = chunks_;
-			result.item = *result.chunk;
-		}
-		
-		return result;
-	}
+	//inline ChunkItem advance(const ChunkItem &item) const
+	//{
+	//	ChunkItem result = item;
+	//	
+	//	result.generation++;
+	//	result.item += width_;
+	//	
+	//	if (result.item >= (*result.chunk + chunkElements_)) {
+	//		result.chunk++;
+	//		if (result.chunk >= (chunks_ + chunkCount_))
+	//			result.chunk = chunks_;
+	//		result.item = *result.chunk;
+	//	}
+	//	
+	//	return result;
+	//}
 	
 	inline void dispose()
 	{
@@ -275,21 +341,21 @@ private:
 		head_ = ChunkItem();
 	}
 	
-	inline ChunkItem getItem(int rowIndex)
-	{
-		int chunkIndex = rowIndex / chunkRows_;
-		int itemIndex = (rowIndex % chunkRows_) * width_;
-		
-		return ChunkItem(chunks_ + chunkIndex, itemIndex);
-	}
+	//inline ChunkItem getItem(int rowIndex)
+	//{
+	//	int chunkIndex = rowIndex / chunkRows_;
+	//	int itemIndex = (rowIndex % chunkRows_) * width_;
+	//	
+	//	return ChunkItem(chunks_ + chunkIndex, itemIndex);
+	//}
 	
-	inline int getRowIndex(const ChunkItem &item)
-	{
-		int chunkIndex = item.chunk - chunks_;
-		int itemIndex = (item.item - *item.chunk) / width_;
-		
-		return (chunkIndex * chunkRows_) + itemIndex;
-	}
+	//inline int getRowIndex(const ChunkItem &item)
+	//{
+	//	int chunkIndex = item.chunk - chunks_;
+	//	int itemIndex = (item.item - *item.chunk) / width_;
+	//	
+	//	return (chunkIndex * chunkRows_) + itemIndex;
+	//}
 
 	inline int normalizeRowIndex(int value)
 	{
@@ -351,7 +417,8 @@ public:
 	
 	void clear()
 	{
-		head_ = ChunkItem(chunks_, chunks_[0]);
+		//head_       = ChunkItem(chunks_, chunks_[0]);
+		head_ = ChunkItem(*this);
 		size_ = 0;
 	}
 	
@@ -391,29 +458,31 @@ public:
 	
 	void resize(int capacity)
 	{
-		dispose();
+		resize(width_, chunkSizeLimit_, capacity);
 		
-		// Calculate capacities/sizes
-		minCapacity_ = capacity;
-		
-		chunkCount_ = minCapacity_ / chunkRows_;
-		if ((minCapacity_ % chunkRows_) > 0) chunkCount_ += 1;
-		
-		capacity_ = chunkCount_ * chunkRows_;
-		
-		// Allocate memory
-		chunks_ = new pointer[chunkCount_];
-		for (int i = 0; i < chunkCount_; i++) {
-			chunks_[i] = new T[chunkElements_];
-		}
-		
-		clear();
+		//dispose();
+		//
+		//// Calculate capacities/sizes
+		//minCapacity_ = capacity;
+		//
+		//chunkCount_ = minCapacity_ / chunkRows_;
+		//if ((minCapacity_ % chunkRows_) > 0) chunkCount_ += 1;
+		//
+		//capacity_ = chunkCount_ * chunkRows_;
+		//
+		//// Allocate memory
+		//chunks_ = new pointer[chunkCount_];
+		//for (int i = 0; i < chunkCount_; i++) {
+		//	chunks_[i] = new T[chunkElements_];
+		//}
+		//
+		//clear();
 	}
 	
 	pointer push()
 	{
 		pointer result = head_.item;
-		head_ = advance(head_);
+		head_ = head_.advance(*this);
 		
 		if (!isFull()) size_++;
 		assert(size_ <= capacity_);
@@ -429,12 +498,14 @@ public:
 	pointer at(int mark)
 	{
 		int rowIndex = normalizeRowIndex(mark);
-		return getItem(rowIndex).item;
+		//return getItem(rowIndex).item;
+		return ChunkItem(*this, rowIndex, 0).item;
 	}
 	
 	int mark()
 	{
-		return getRowIndex(head_);
+		//return getRowIndex(head_);
+		return head_.index;
 	}
 	
 	//// RESERVATIONS //////////////////////////////////////////////
@@ -547,6 +618,24 @@ public:
 		assert((handle >= 0) && (handle < (int)reservations_.size()));
 		return reservations_[handle].dirty;
 	}
+};
+
+template<class T>
+const typename RingBuffer2D<T>::gen_type RingBuffer2D<T>::GEN_WRAP_HIGH = numeric_limits<gen_type>::max() - (numeric_limits<gen_type>::max() / 4);
+
+template<class T>
+const typename RingBuffer2D<T>::gen_type RingBuffer2D<T>::GEN_WRAP_LOW = numeric_limits<gen_type>::min() - (numeric_limits<gen_type>::min() / 4);
+
+
+template<class T, class Container>
+class RingBuffer2D_ {
+public:
+	typedef Container container_type;
+	typedef T*        value_type;
+
+private:
+	int       width_;
+	Container container_;
 };
 
 
